@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Budget Bloom</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <style>
+    .recurring { display:inline-block; margin-left:8px; color:var(--green); font-size:10px; font-weight:700 }
+    .check-row { display:flex; align-items:center; gap:10px; padding:12px; border:1px solid var(--line); border-radius:10px }
+    .check-row input { width:auto; margin:0 }
+    .check-row span, .check-row small { display:block }
+    .check-row strong { color:var(--ink) }
+    .check-row small { margin-top:2px; font-weight:500 }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div><p class="eyebrow">HOUSEHOLD FINANCE</p><h1>Budget <em>Bloom</em></h1></div>
+      <button class="round" data-open="householdDialog" title="New household">＋</button>
+    </header>
+
+    {% if not active %}
+      <section class="empty"><span>⌂</span><h2>Create your household</h2><p>Start by giving your shared budget a home.</p><button data-open="householdDialog">Create household</button></section>
+    {% else %}
+      <nav class="controls">
+        <form method="get">
+          <select name="household" onchange="this.form.submit()">
+            {% for h in households %}<option value="{{ h.id }}" {% if h.id == active.id %}selected{% endif %}>{{ h.name }}</option>{% endfor %}
+          </select>
+          <input type="month" name="month" value="{{ selected_month }}" onchange="this.form.submit()">
+          <select name="person" onchange="this.form.submit()">
+            <option value="">Whole household</option>
+            {% for p in people %}<option value="{{ p.id }}" {% if p.id == selected_person %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+          </select>
+        </form>
+        <button class="ghost" data-open="personDialog">＋ Add person</button>
+      </nav>
+
+      <section class="hero {{ 'negative' if balance < 0 else '' }}">
+        <p>PROJECTED MONEY LEFT</p>
+        <h2>{{ '-' if balance < 0 else '' }}${{ '{:,.2f}'.format(balance|abs) }}</h2>
+        <span>{{ active.name }} · {{ selected_month }}</span>
+      </section>
+
+      <section class="stats">
+        <article><i class="income">↗</i><div><span>Income</span><strong>${{ '{:,.2f}'.format(income) }}</strong></div></article>
+        <article><i class="expense">↘</i><div><span>Expenses</span><strong>${{ '{:,.2f}'.format(expenses) }}</strong></div></article>
+      </section>
+
+      <section class="ledger">
+        <div class="section-title"><div><p class="eyebrow">MONTHLY ACTIVITY</p><h2>Entries</h2></div><button data-open="entryDialog" {% if not people %}disabled title="Add a person first"{% endif %}>＋ Add entry</button></div>
+        {% if entries %}
+        <div class="table-wrap"><table><thead><tr><th class="complete-heading">Done</th><th>Description</th><th>Category</th><th>Person</th><th>Date</th><th>Type</th><th class="right">Amount</th><th></th></tr></thead><tbody>
+          {% for e in entries %}<tr class="{{ 'completed' if e.completed else '' }}">
+            <td class="complete-cell"><form method="post" action="/entries/{{ e.id }}/completion"><input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}"><input class="complete-toggle" type="checkbox" name="completed" value="true" aria-label="Mark {{ e.description }} completed for {{ selected_month }}" {% if e.completed %}checked{% endif %} onchange="this.form.submit()"></form></td>
+            <td><strong>{{ e.description }}</strong>{% if e.recurring_monthly %}<span class="recurring" title="Repeats monthly">↻ Monthly</span>{% endif %}</td><td><span class="category">{{ e.categories.name }}</span></td><td><span class="avatar">{{ e.people.name[0]|upper }}</span>{{ e.people.name }}</td><td>{{ e.entry_date }}</td>
+            <td><span class="pill {{ e.entry_type }}">{{ e.entry_type }}</span></td>
+            <td class="right amount {{ e.entry_type }}">{{ '+' if e.entry_type == 'income' else '-' }}${{ '{:,.2f}'.format(e.amount|float) }}</td>
+            <td class="actions"><button class="icon edit" data-entry='{{ e|tojson }}' title="Edit">✎</button><form method="post" action="/entries/{{ e.id }}/delete" onsubmit="return confirm('Delete this entry?')"><input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}"><button class="icon" title="Delete">×</button></form></td>
+          </tr>{% endfor %}
+        </tbody></table></div>
+        {% else %}<div class="empty small"><span>◎</span><h3>No entries this month</h3><p>Add income or an expense to see your projection.</p></div>{% endif %}
+      </section>
+    {% endif %}
+  </main>
+
+  <dialog id="householdDialog"><form method="post" action="/households"><button type="button" class="close">×</button><p class="eyebrow">NEW SPACE</p><h2>Create household</h2><label>Name<input name="name" placeholder="The Johnsons" required></label><button type="submit">Create household</button></form></dialog>
+  {% if active %}
+  <dialog id="personDialog"><form method="post" action="/people"><button type="button" class="close">×</button><p class="eyebrow">NEW MEMBER</p><h2>Add a person</h2><input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}"><label>Name<input name="name" placeholder="Person's name" required></label><button type="submit">Add person</button></form></dialog>
+  <dialog id="entryDialog"><form method="post" action="/entries" id="entryForm"><button type="button" class="close">×</button><p class="eyebrow">MONTHLY ACTIVITY</p><h2 id="entryTitle">Add entry</h2><input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}"><div class="type-toggle"><label><input type="radio" name="entry_type" value="expense" checked><span>Expense</span></label><label><input type="radio" name="entry_type" value="income"><span>Income</span></label></div><label>Description<input name="description" placeholder="Account or payment name…" required></label><label>Category<select name="category_id" required>{% for category in categories %}<option value="{{ category.id }}">{{ category.name }}</option>{% endfor %}</select></label><div class="grid"><label>Amount<input name="amount" type="number" min="0.01" step="0.01" placeholder="0.00" required></label><label>Date<input name="entry_date" type="date" value="{{ today }}" required></label></div><label>Person<select name="person_id" required>{% for p in people %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></label><label class="check-row"><input name="recurring_monthly" type="checkbox" value="true"><span><strong>Repeat monthly</strong><small>Include this entry in every following month</small></span></label><button type="submit" id="entrySubmit">Add entry</button></form></dialog>
+  {% endif %}
+  <script src="/static/app.js"></script>
+</body>
+</html>
