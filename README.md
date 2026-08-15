@@ -18,6 +18,8 @@ For a fresh database, run these SQL files in order in the Supabase SQL editor:
 3. `normalize_entry_categories.sql`
 4. `add_recurrence_end_month.sql`
 5. `add_category_emojis.sql`
+6. `add_accounts_and_sessions.sql`
+7. `add_household_invitations.sql`
 
 They create month-specific completion records and the normalized category list.
 

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Budget Bloom</title>
   <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/layout-fixes.css">
   <style>
     .recurring { display:inline-block; margin-left:8px; color:var(--green); font-size:10px; font-weight:700 }
     .check-row { display:flex; align-items:center; gap:10px; padding:12px; border:1px solid var(--line); border-radius:10px }
@@ -18,7 +19,7 @@
   <main class="shell">
     <header>
       <div><p class="eyebrow">HOUSEHOLD FINANCE</p><h1>Budget <em>Bloom</em></h1></div>
-      <button class="round" data-open="householdDialog" title="New household">＋</button>
+      {% if account %}<div class="account-menu"><span>{{ account.username }}</span><form method="post" action="/invitations"><button class="ghost" type="submit">Invite user</button></form><form method="post" action="/logout"><button class="ghost" type="submit">Sign out</button></form></div>{% endif %}
     </header>
 
     {% if not active %}
@@ -26,9 +27,7 @@
     {% else %}
       <nav class="controls">
         <form method="get">
-          <select name="household" onchange="this.form.submit()">
-            {% for h in households %}<option value="{{ h.id }}" {% if h.id == active.id %}selected{% endif %}>{{ h.name }}</option>{% endfor %}
-          </select>
+          <span class="household-name">{{ active.name }}</span>
           <input type="month" name="month" value="{{ selected_month }}" onchange="this.form.submit()">
           <select name="person" onchange="this.form.submit()">
             <option value="">Whole household</option>

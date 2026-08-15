@@ -1,0 +1,128 @@
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(207, 232, 108, .2), transparent 28%),
+    radial-gradient(circle at 85% 80%, rgba(39, 114, 95, .12), transparent 30%),
+    var(--paper);
+}
+
+.login-shell {
+  width: min(920px, 100%);
+  min-height: 570px;
+  display: grid;
+  grid-template-columns: .9fr 1.1fr;
+  overflow: hidden;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  box-shadow: 0 30px 90px rgba(24, 51, 45, .16);
+}
+
+.login-brand {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 48px;
+  overflow: hidden;
+  color: #fff;
+  background: linear-gradient(145deg, #153c32, #27725f);
+}
+
+.login-brand > div:nth-child(2) { margin-top: 22px; }
+.login-brand .eyebrow { color: #b9d2ca; }
+.login-brand h1 { color: #fff; }
+.login-brand h1 em { color: var(--lime); }
+.brand-mark {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  background: var(--lime);
+  color: var(--ink);
+  font-family: 'Playfair Display', serif;
+  font-size: 25px;
+  font-style: italic;
+  font-weight: 700;
+}
+.brand-message { position: relative; z-index: 1; margin-top: auto; }
+.brand-message h2 { margin-bottom: 14px; font-size: 30px; line-height: 1.15; }
+.brand-message p { max-width: 290px; color: #c9ddd6; font-size: 14px; line-height: 1.65; }
+.brand-decoration { position: absolute; right: -50px; top: 95px; color: rgba(255,255,255,.06); font-size: 260px; }
+
+.login-form-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 58px 68px;
+}
+.login-form-panel > .eyebrow { color: var(--green); }
+.login-form-panel h2 { margin: 4px 0 8px; font-size: 28px; letter-spacing: -.5px; }
+.login-subtitle { margin-bottom: 18px; color: var(--muted); font-size: 14px; }
+.login-form-panel label { display: block; margin: 17px 0; color: var(--ink); font-size: 12px; font-weight: 700; }
+.login-form-panel input { display: block; width: 100%; margin-top: 7px; padding: 13px 14px; }
+.login-form-panel button { width: 100%; margin-top: 8px; padding: 14px; }
+.invite-prompt { display: flex; justify-content: center; gap: 6px; margin-top: 26px; color: var(--muted); font-size: 13px; }
+.invite-prompt a { color: var(--green); font-weight: 700; text-decoration: none; }
+.invite-prompt a:hover { text-decoration: underline; }
+.mobile-brand { display: none; }
+
+header .account-menu { display: flex; align-items: center; gap: 9px; }
+header .account-menu form { display: flex; align-items: center; margin: 0; }
+header .account-menu button { height: 42px; display: inline-flex; align-items: center; justify-content: center; margin: 0; padding: 0 15px; white-space: nowrap; }
+header .account-menu > span { display: inline-flex; align-items: center; height: 42px; padding: 0 5px; }
+
+.controls > form {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) 155px minmax(160px, 1fr);
+  align-items: center;
+  gap: 9px;
+}
+.controls .household-name,
+.controls input[type="month"],
+.controls select {
+  width: 100%;
+  height: 42px;
+  min-height: 42px;
+  margin: 0;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font: 500 14px 'DM Sans', sans-serif;
+}
+.controls .household-name {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.controls > .ghost { height: 42px; display: inline-flex; align-items: center; justify-content: center; margin: 0; }
+
+@media (max-width: 720px) {
+  .auth-page { padding: 18px; }
+  .login-shell { min-height: 0; grid-template-columns: 1fr; border-radius: 22px; }
+  .login-brand { display: none; }
+  .login-form-panel { padding: 40px 30px; }
+  .mobile-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 34px; }
+  .mobile-brand .brand-mark { width: 42px; height: 42px; border-radius: 13px; font-size: 22px; }
+  .mobile-brand h1 { font-size: 24px; }
+  .invite-prompt { flex-direction: column; align-items: center; }
+  header { height: auto; min-height: 95px; gap: 14px; }
+  header .account-menu { gap: 6px; }
+  header .account-menu > span { display: none; }
+  header .account-menu button { height: 39px; padding: 0 11px; font-size: 12px; }
+  .controls { flex-direction: column; align-items: stretch; }
+  .controls > form { width: 100%; grid-template-columns: 1fr; }
+  .controls > .ghost { align-self: flex-end; }
+}
+
+@media (max-width: 430px) {
+  header { align-items: flex-start; flex-direction: column; padding: 20px 0; }
+  header .account-menu { width: 100%; justify-content: flex-end; }
+}
