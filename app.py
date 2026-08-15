@@ -75,6 +75,16 @@ def date_in_month(source: date, year: int, month: int) -> date:
     return date(year, month, min(source.day, calendar.monthrange(year, month)[1]))
 
 
+def previous_month_start(source: date) -> date:
+    if source.month == 1:
+        return date(source.year - 1, 12, 1)
+    return date(source.year, source.month - 1, 1)
+
+
+def recurrence_in_month(source: date, selected: date, recurring: bool, recurring_until: date | None) -> bool:
+    return recurring and source < selected and (recurring_until is None or selected <= recurring_until)
+
+
 def money(value: str) -> Decimal:
     try:
         amount = Decimal(value).quantize(Decimal("0.01"))
@@ -148,10 +158,17 @@ async def dashboard(request: Request, household: int | None = None, person: str 
         entries = []
         for item in rows:
             source_date = date.fromisoformat(item["entry_date"])
-            if source_date >= start or item["recurring_monthly"]:
+            recurring_until = date.fromisoformat(item["recurring_until"]) if item["recurring_until"] else None
+            recurs_in_selected_month = recurrence_in_month(
+                source_date, start, item["recurring_monthly"], recurring_until
+            )
+            if source_date >= start or recurs_in_selected_month:
                 item["source_entry_date"] = item["entry_date"]
                 item["entry_date"] = date_in_month(source_date, start.year, start.month).isoformat()
                 item["completed"] = item["id"] in completed_entry_ids
+                item["recurs_in_selected_month"] = item["recurring_monthly"] and (
+                    recurring_until is None or start <= recurring_until
+                )
                 entries.append(item)
         entries.sort(key=lambda item: (item["entry_date"], item["id"]), reverse=True)
 
@@ -228,11 +245,36 @@ async def edit_entry(
         raise HTTPException(400, "Invalid entry details")
     if not description.strip():
         raise HTTPException(400, "Description is required")
+
+    existing_rows = await db.request(
+        "GET", "budget_entries",
+        params={
+            "select": "id,entry_date,recurring_monthly,recurring_until",
+            "id": f"eq.{entry_id}", "household_id": f"eq.{household_id}",
+        },
+    )
+    if not existing_rows:
+        raise HTTPException(404, "Entry not found")
+    existing = existing_rows[0]
+    selected_start, _ = month_bounds(month)
+    source_date = date.fromisoformat(existing["entry_date"])
+
+    recurrence_payload = {"recurring_monthly": recurring_monthly, "recurring_until": None}
+    if not recurring_monthly and existing["recurring_monthly"] and selected_start > source_date.replace(day=1):
+        # Stopping a recurrence affects this month forward, not its prior history.
+        recurrence_payload = {
+            "recurring_monthly": True,
+            "recurring_until": previous_month_start(selected_start).isoformat(),
+        }
+    elif recurring_monthly and existing["recurring_monthly"] and existing["recurring_until"]:
+        # Editing an earlier occurrence must not silently reactivate a stopped recurrence.
+        recurrence_payload["recurring_until"] = existing["recurring_until"]
+
     await db.request("PATCH", "budget_entries", params={"id": f"eq.{entry_id}", "household_id": f"eq.{household_id}"}, json={
         "person_id": person_id, "entry_type": entry_type, "description": description.strip(),
         "category_id": category_id,
         "amount": str(money(amount)), "entry_date": entry_date.isoformat(), "updated_at": datetime.now(UTC).isoformat(),
-        "recurring_monthly": recurring_monthly,
+        **recurrence_payload,
     })
     return redirect_home(household_id, month)
 
