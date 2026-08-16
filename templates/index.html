@@ -31,25 +31,25 @@
 
       <section class="hero {{ 'negative' if balance < 0 else '' }}">
         <p>PROJECTED MONEY LEFT</p>
-        <h2>{{ '-' if balance < 0 else '' }}${{ '{:,.2f}'.format(balance|abs) }}</h2>
+        <h2 class="balance-total">{{ '-' if balance < 0 else '' }}${{ '{:,.2f}'.format(balance|abs) }}</h2>
         <span>{{ active.name }} · {{ selected_month }}</span>
       </section>
 
       <section class="stats">
-        <article><i class="income">↗</i><div><span>Income</span><strong>${{ '{:,.2f}'.format(income) }}</strong></div></article>
-        <article><i class="expense">↘</i><div><span>Expenses</span><strong>${{ '{:,.2f}'.format(expenses) }}</strong></div></article>
+        <article><i class="income">↗</i><div><span>Income</span><strong class="income-total">${{ '{:,.2f}'.format(income) }}</strong></div></article>
+        <article><i class="expense">↘</i><div><span>Expenses</span><strong class="expense-total">${{ '{:,.2f}'.format(expenses) }}</strong></div></article>
       </section>
 
       <section class="ledger">
         <div class="section-title"><div><p class="eyebrow">MONTHLY ACTIVITY</p><h2>Entries</h2></div><button data-open="entryDialog" {% if not people %}disabled title="Add a person first"{% endif %}>＋ Add entry</button></div>
         {% if entries %}
         <div class="table-wrap"><table><thead><tr><th class="complete-heading">Done</th><th>Description</th><th>Category</th><th>Person</th><th>Date</th><th class="type-column">Type</th><th class="right">Amount</th><th></th></tr></thead><tbody>
-          {% for e in entries %}<tr class="{{ 'completed' if e.completed else '' }}">
+          {% for e in entries %}<tr class="{{ 'completed' if e.completed else '' }}" data-entry-date="{{ e.entry_date }}" data-entry-id="{{ e.id }}" data-entry-type="{{ e.entry_type }}" data-amount="{{ e.amount }}">
             <td class="complete-cell"><form method="post" action="/entries/{{ e.id }}/completion"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}"><input class="complete-toggle" type="checkbox" name="completed" value="true" aria-label="Mark {{ e.description }} completed for {{ selected_month }}" {% if e.completed %}checked{% endif %} data-autosubmit></form></td>
             <td><strong>{{ e.description }}</strong>{% if e.recurs_in_selected_month %}<span class="recurring" title="Repeats monthly">↻ Monthly</span>{% endif %}</td><td><span class="category">{{ e.categories.name }}</span></td><td><span class="avatar">{{ e.people.name[0]|upper }}</span>{{ e.people.name }}</td><td>{{ e.entry_date }}</td>
             <td class="type-column"><span class="pill {{ e.entry_type }}">{{ e.entry_type }}</span></td>
             <td class="right amount {{ e.entry_type }}">{{ '+' if e.entry_type == 'income' else '-' }}${{ '{:,.2f}'.format(e.amount|float) }}</td>
-            <td class="actions"><button class="icon edit" data-entry='{{ e|tojson }}' title="Edit">✎</button><form method="post" action="/entries/{{ e.id }}/delete" data-confirm="Delete this entry?"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}"><button class="icon" title="Delete">×</button></form></td>
+            <td class="actions"><button class="icon edit" data-entry='{{ e|tojson }}' title="Edit">✎</button><form method="post" action="/entries/{{ e.id }}/delete" data-delete-entry data-confirm="Delete this entry?"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}"><button class="icon" title="Delete">×</button></form></td>
           </tr>{% endfor %}
         </tbody></table></div>
         {% else %}<div class="empty small"><span>◎</span><h3>No entries this month</h3><p>Add income or an expense to see your projection.</p></div>{% endif %}

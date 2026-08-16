@@ -21,6 +21,8 @@ For a fresh database, run these SQL files in order in the Supabase SQL editor:
 6. `add_accounts_and_sessions.sql`
 7. `add_household_invitations.sql`
 8. `harden_authentication.sql`
+9. `add_dashboard_rpc.sql`
+10. `add_performance_indexes.sql`
 
 They create month-specific completion records and the normalized category list.
 

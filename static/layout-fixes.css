@@ -65,6 +65,10 @@
 .login-form-panel label { display: block; margin: 17px 0; color: var(--ink); font-size: 12px; font-weight: 700; }
 .login-form-panel input { display: block; width: 100%; margin-top: 7px; padding: 13px 14px; }
 .login-form-panel button { width: 100%; margin-top: 8px; padding: 14px; }
+.login-form-panel button .button-spinner { display: none; width: 16px; height: 16px; margin-left: 9px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: button-spin .7s linear infinite; }
+.login-form-panel button.is-loading { display: flex; align-items: center; justify-content: center; opacity: .68; cursor: wait; }
+.login-form-panel button.is-loading .button-spinner { display: inline-block; }
+@keyframes button-spin { to { transform: rotate(360deg); } }
 .invite-prompt { display: flex; justify-content: center; gap: 6px; margin-top: 26px; color: var(--muted); font-size: 13px; }
 .invite-prompt a { color: var(--green); font-weight: 700; text-decoration: none; }
 .invite-prompt a:hover { text-decoration: underline; }

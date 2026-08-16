@@ -21,14 +21,15 @@
       <h2>Sign in to your household</h2>
       <p class="login-subtitle">Enter your account details to continue.</p>
       {% if error %}<p class="auth-error" role="alert">{{ error }}</p>{% endif %}
-      <form method="post" action="/login">
+      <form method="post" action="/login" data-loading-form>
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <label>Username<input name="username" autocomplete="username" placeholder="Your username" required autofocus></label>
         <label>Password<input name="password" type="password" autocomplete="current-password" placeholder="Your password" required></label>
-        <button type="submit">Sign in</button>
+        <button type="submit"><span class="button-label">Sign in</span><span class="button-spinner" aria-hidden="true"></span></button>
       </form>
       <div class="invite-prompt"><span>Joining a household?</span><a href="/register">Use an invitation code</a></div>
     </section>
   </main>
+  <script src="/static/app.js"></script>
 </body>
 </html>

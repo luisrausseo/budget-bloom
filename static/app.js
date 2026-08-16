@@ -5,11 +5,72 @@ document.querySelectorAll('.close').forEach(button => button.addEventListener('c
 document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('click', event => {
   if (event.target === dialog) dialog.close();
 }));
-document.querySelectorAll('[data-autosubmit]').forEach(control => control.addEventListener('change', () => control.form?.submit()));
-document.querySelectorAll('form[data-confirm]').forEach(form => form.addEventListener('submit', event => {
+document.querySelectorAll('[data-autosubmit]:not(.complete-toggle)').forEach(control => control.addEventListener('change', () => control.form?.submit()));
+document.querySelectorAll('.complete-toggle').forEach(control => control.addEventListener('change', async () => {
+  const original = !control.checked;
+  control.disabled = true;
+  try {
+    const response = await fetch(control.form.action, {
+      method: 'POST', body: new FormData(control.form), headers: {'X-Requested-With': 'fetch'}
+    });
+    if (!response.ok) throw new Error('Unable to save completion');
+    const row = control.closest('tr');
+    row.classList.toggle('completed', control.checked);
+    const body = row.parentElement;
+    [...body.rows].sort((a, b) => {
+      const completed = Number(a.classList.contains('completed')) - Number(b.classList.contains('completed'));
+      if (completed) return completed;
+      return b.dataset.entryDate.localeCompare(a.dataset.entryDate) || Number(b.dataset.entryId) - Number(a.dataset.entryId);
+    }).forEach(item => body.appendChild(item));
+  } catch (error) {
+    control.checked = original;
+    window.alert('Could not update this entry. Please try again.');
+  } finally {
+    control.disabled = false;
+  }
+}));
+document.querySelectorAll('form[data-confirm]:not([data-delete-entry])').forEach(form => form.addEventListener('submit', event => {
   if (!window.confirm(form.dataset.confirm)) event.preventDefault();
 }));
+const refreshDashboardTotals = () => {
+  let income = 0, expenses = 0;
+  document.querySelectorAll('tbody tr[data-entry-type]').forEach(row => {
+    const amount = Number(row.dataset.amount);
+    if (row.dataset.entryType === 'income') income += amount; else expenses += amount;
+  });
+  const money = value => `$${value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+  const balance = income - expenses;
+  const hero = document.querySelector('.hero');
+  if (document.querySelector('.income-total')) document.querySelector('.income-total').textContent = money(income);
+  if (document.querySelector('.expense-total')) document.querySelector('.expense-total').textContent = money(expenses);
+  if (document.querySelector('.balance-total')) document.querySelector('.balance-total').textContent = `${balance < 0 ? '-' : ''}${money(Math.abs(balance))}`;
+  hero?.classList.toggle('negative', balance < 0);
+};
+document.querySelectorAll('form[data-delete-entry]').forEach(deleteForm => deleteForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!window.confirm(deleteForm.dataset.confirm)) return;
+  const button = deleteForm.querySelector('button[type="submit"], button:not([type])');
+  if (button) button.disabled = true;
+  try {
+    const response = await fetch(deleteForm.action, {
+      method: 'POST', body: new FormData(deleteForm), headers: {'X-Requested-With': 'fetch'}
+    });
+    if (!response.ok) throw new Error('Unable to delete entry');
+    deleteForm.closest('tr').remove();
+    refreshDashboardTotals();
+  } catch (error) {
+    if (button) button.disabled = false;
+    window.alert('Could not delete this entry. Please try again.');
+  }
+}));
 document.querySelectorAll('[data-select]').forEach(input => input.addEventListener('click', () => input.select()));
+document.querySelectorAll('form[data-loading-form]').forEach(loadingForm => loadingForm.addEventListener('submit', () => {
+  const button = loadingForm.querySelector('button[type="submit"]');
+  if (!button) return;
+  button.disabled = true;
+  button.classList.add('is-loading');
+  button.setAttribute('aria-busy', 'true');
+}));
 const form = document.getElementById('entryForm');
 const dialog = document.getElementById('entryDialog');
 document.querySelectorAll('.edit').forEach(button => button.addEventListener('click', () => {

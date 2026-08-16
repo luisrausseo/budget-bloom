@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import secrets
+import time
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -14,7 +15,7 @@ from urllib.parse import urlencode
 import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
@@ -57,6 +58,10 @@ class Supabase:
         self.proxy = configured_proxy or (
             "http://proxy.server:3128" if on_pythonanywhere else None
         )
+        self.client = httpx.AsyncClient(
+            timeout=15, proxy=self.proxy, trust_env=False,
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10, keepalive_expiry=30),
+        )
 
     def _headers(self, prefer: str | None = None) -> dict[str, str]:
         if not self.url or not self.key:
@@ -73,14 +78,13 @@ class Supabase:
     async def request(self, method: str, table: str, *, params=None, json=None, prefer=None):
         # Use PythonAnywhere's required egress proxy only on that platform.
         # trust_env=False prevents an unrelated local shell proxy from changing app behavior.
-        async with httpx.AsyncClient(timeout=15, proxy=self.proxy, trust_env=False) as client:
-            response = await client.request(
-                method,
-                f"{self.url}/rest/v1/{table}",
-                headers=self._headers(prefer),
-                params=params,
-                json=json,
-            )
+        response = await self.client.request(
+            method,
+            f"{self.url}/rest/v1/{table}",
+            headers=self._headers(prefer),
+            params=params,
+            json=json,
+        )
         if response.is_error:
             logger.error("Supabase request failed: %s %s returned %s", method, table, response.status_code)
             raise HTTPException(status_code=400, detail="The request could not be completed")
@@ -93,10 +97,18 @@ COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
 SESSION_COOKIE = "__Host-budget_bloom_session" if COOKIE_SECURE else "budget_bloom_session"
 CSRF_COOKIE = "__Host-budget_bloom_csrf" if COOKIE_SECURE else "budget_bloom_csrf"
 logger = logging.getLogger("budget_bloom")
+session_cache: dict[str, tuple[float, dict | None]] = {}
+SESSION_CACHE_SECONDS = 30
+
+
+@app.on_event("shutdown")
+async def close_http_client():
+    await db.client.aclose()
 
 
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
+    started = time.perf_counter()
     response = await call_next(request)
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; script-src 'self'; "
@@ -110,6 +122,9 @@ async def security_headers(request: Request, call_next):
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     if COOKIE_SECURE:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    response.headers["Server-Timing"] = f"app;dur={elapsed_ms:.1f}"
+    logger.info("%s %s completed in %.1fms", request.method, request.url.path, elapsed_ms)
     return response
 
 
@@ -190,16 +205,31 @@ async def current_account(request: Request) -> dict | None:
     token = request.cookies.get(SESSION_COOKIE)
     if not token:
         return None
+    token_hash = session_token_hash(token)
+    cached = session_cache.get(token_hash)
+    now = time.monotonic()
+    if cached and cached[0] > now:
+        return cached[1]
     sessions = await db.request(
         "GET", "account_sessions", params={
             "select": "account_id,expires_at,accounts(id,username,household_id,role,disabled_at)",
-            "token_hash": f"eq.{session_token_hash(token)}",
+            "token_hash": f"eq.{token_hash}",
             "expires_at": f"gt.{datetime.now(UTC).isoformat()}",
             "limit": "1",
         },
     )
     account = sessions[0]["accounts"] if sessions else None
-    return account if account and not account["disabled_at"] else None
+    account = account if account and not account["disabled_at"] else None
+    session_cache[token_hash] = (now + SESSION_CACHE_SECONDS, account)
+    if len(session_cache) > 2000:
+        for key in [key for key, value in session_cache.items() if value[0] <= now]:
+            session_cache.pop(key, None)
+    return account
+
+
+def invalidate_account_cache(account_id: int):
+    for key in [key for key, value in session_cache.items() if value[1] and value[1]["id"] == account_id]:
+        session_cache.pop(key, None)
 
 
 async def require_household(request: Request, household_id: int) -> dict:
@@ -300,41 +330,22 @@ async def dashboard(request: Request, household: int | None = None, person: str 
         selected_person = None
     start, end = month_bounds(month or date.today().strftime("%Y-%m"))
     selected_month = start.strftime("%Y-%m")
-    households = await db.request(
-        "GET", "households", params={"select": "*", "id": f"eq.{household}", "limit": "1"}
-    )
-    active = next((item for item in households if item["id"] == household), None)
-    if not active and households:
-        active = households[0]
-
-    people, categories, entries = [], [], []
+    dashboard_data = await db.request("POST", "rpc/get_budget_dashboard", json={
+        "p_household_id": household, "p_month_start": start.isoformat(), "p_month_end": end.isoformat(),
+    })
+    active = dashboard_data.get("household") if dashboard_data else None
+    households = [active] if active else []
+    people = dashboard_data.get("people", []) if dashboard_data else []
+    categories = dashboard_data.get("categories", []) if dashboard_data else []
+    rows = dashboard_data.get("entries", []) if dashboard_data else []
+    completion_rows = dashboard_data.get("completions", []) if dashboard_data else []
+    entries = []
     if active:
-        people = await db.request(
-            "GET", "people", params={"select": "*", "household_id": f"eq.{active['id']}", "order": "name"}
-        )
-        categories = await db.request(
-            "GET", "categories",
-            params={"select": "*", "household_id": f"eq.{active['id']}", "order": "sort_order,name"},
-        )
-        params = {
-            "select": "*,people(name),categories(name)",
-            "household_id": f"eq.{active['id']}",
-            "entry_date": f"lte.{end.isoformat()}",
-            "order": "entry_date.desc,id.desc",
-        }
         if selected_person and any(item["id"] == selected_person for item in people):
-            params["person_id"] = f"eq.{selected_person}"
+            rows = [item for item in rows if item["person_id"] == selected_person]
         else:
             selected_person = None
-        rows = await db.request("GET", "budget_entries", params=params)
-        completion_rows = await db.request(
-            "GET", "entry_completions", params={
-                "select": "entry_id", "household_id": f"eq.{active['id']}",
-                "month": f"eq.{start.isoformat()}",
-            }
-        )
         completed_entry_ids = {item["entry_id"] for item in completion_rows}
-        entries = []
         for item in rows:
             source_date = date.fromisoformat(item["entry_date"])
             recurring_until = date.fromisoformat(item["recurring_until"]) if item["recurring_until"] else None
@@ -391,7 +402,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
     if re.fullmatch(r"[a-z0-9._-]{3,50}", username):
         rows = await db.request(
             "GET", "accounts", params={
-                "select": "id,password_hash,household_id,role,disabled_at",
+                "select": "id,username,password_hash,household_id,role,disabled_at",
                 "username": f"eq.{username}", "limit": "1",
             }
         )
@@ -405,6 +416,9 @@ async def login(request: Request, username: str = Form(...), password: str = For
     await db.request("POST", "account_sessions", json={
         "account_id": rows[0]["id"], "token_hash": session_token_hash(token),
         "expires_at": expires.isoformat(),
+    })
+    session_cache[session_token_hash(token)] = (time.monotonic() + SESSION_CACHE_SECONDS, {
+        key: rows[0][key] for key in ("id", "username", "household_id", "role", "disabled_at")
     })
     response = RedirectResponse("/", status_code=303)
     response.set_cookie(
@@ -509,7 +523,9 @@ async def logout(request: Request, csrf_token: str = Form(...)):
     account = await current_account(request)
     token = request.cookies.get(SESSION_COOKIE)
     if token:
-        await db.request("DELETE", "account_sessions", params={"token_hash": f"eq.{session_token_hash(token)}"})
+        token_hash = session_token_hash(token)
+        await db.request("DELETE", "account_sessions", params={"token_hash": f"eq.{token_hash}"})
+        session_cache.pop(token_hash, None)
     response = RedirectResponse("/login", status_code=303)
     response.delete_cookie(SESSION_COOKIE)
     if account:
@@ -562,6 +578,7 @@ async def change_password(
         "password_hash": password_hash(new_password), "password_changed_at": datetime.now(UTC).isoformat(),
     })
     await db.request("DELETE", "account_sessions", params={"account_id": f"eq.{account['id']}"})
+    invalidate_account_cache(account["id"])
     await audit_event(request, "password_changed", account)
     response = RedirectResponse("/login", status_code=303)
     response.delete_cookie(SESSION_COOKIE, path="/")
@@ -575,6 +592,7 @@ async def revoke_sessions(request: Request, csrf_token: str = Form(...)):
     if not account:
         raise HTTPException(401, "Sign in required")
     await db.request("DELETE", "account_sessions", params={"account_id": f"eq.{account['id']}"})
+    invalidate_account_cache(account["id"])
     await audit_event(request, "sessions_revoked", account)
     response = RedirectResponse("/login", status_code=303)
     response.delete_cookie(SESSION_COOKIE, path="/")
@@ -599,6 +617,7 @@ async def disable_member(member_id: int, request: Request, csrf_token: str = For
         raise HTTPException(404, "Member not found")
     await db.request("PATCH", "accounts", params={"id": f"eq.{member_id}"}, json={"disabled_at": datetime.now(UTC).isoformat()})
     await db.request("DELETE", "account_sessions", params={"account_id": f"eq.{member_id}"})
+    invalidate_account_cache(member_id)
     await audit_event(request, "member_disabled", account, {"member_id": member_id})
     return RedirectResponse("/security?message=Member+disabled", status_code=303)
 
@@ -618,6 +637,7 @@ async def enable_member(member_id: int, request: Request, csrf_token: str = Form
     if not members:
         raise HTTPException(404, "Member not found")
     await db.request("PATCH", "accounts", params={"id": f"eq.{member_id}"}, json={"disabled_at": None})
+    invalidate_account_cache(member_id)
     await audit_event(request, "member_enabled", account, {"member_id": member_id})
     return RedirectResponse("/security?message=Member+enabled", status_code=303)
 
@@ -742,6 +762,8 @@ async def delete_entry(
     require_csrf(request, csrf_token)
     await require_household(request, household_id)
     await db.request("DELETE", "budget_entries", params={"id": f"eq.{entry_id}", "household_id": f"eq.{household_id}"})
+    if request.headers.get("X-Requested-With") == "fetch":
+        return JSONResponse({"deleted": True, "entry_id": entry_id})
     return redirect_home(household_id, month)
 
 
@@ -753,22 +775,12 @@ async def set_entry_completion(
     require_csrf(request, csrf_token)
     await require_household(request, household_id)
     start, _ = month_bounds(month)
-    entry_rows = await db.request(
-        "GET", "budget_entries",
-        params={"select": "id", "id": f"eq.{entry_id}", "household_id": f"eq.{household_id}"},
-    )
-    if not entry_rows:
+    updated = await db.request("POST", "rpc/set_budget_entry_completion", json={
+        "p_entry_id": entry_id, "p_household_id": household_id,
+        "p_month": start.isoformat(), "p_completed": completed,
+    })
+    if not updated:
         raise HTTPException(404, "Entry not found")
-
-    if completed:
-        await db.request(
-            "POST", "entry_completions",
-            json={"entry_id": entry_id, "household_id": household_id, "month": start.isoformat()},
-            prefer="resolution=merge-duplicates",
-        )
-    else:
-        await db.request("DELETE", "entry_completions", params={
-            "entry_id": f"eq.{entry_id}", "household_id": f"eq.{household_id}",
-            "month": f"eq.{start.isoformat()}",
-        })
+    if request.headers.get("X-Requested-With") == "fetch":
+        return JSONResponse({"completed": completed})
     return redirect_home(household_id, start.strftime("%Y-%m"))
