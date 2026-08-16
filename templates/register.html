@@ -8,14 +8,15 @@
     {% if error %}<p class="auth-error" role="alert">{{ error }}</p>{% endif %}
     <form method="post" action="/register">
       <input type="hidden" name="invitation_token" value="{{ code }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <label>Username<input name="username" autocomplete="username" minlength="3" required autofocus></label>
-      <label>Password<input name="password" type="password" autocomplete="new-password" minlength="8" required></label>
+      <label>Password<input name="password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
       <button type="submit">Create account</button>
     </form>
   {% else %}
     <h2>Enter your invitation code</h2>
     {% if error %}<p class="auth-error" role="alert">{{ error }}</p>{% endif %}
-    <form method="get" action="/register"><label>Invitation code<input name="code" value="{{ code }}" required autofocus></label><button type="submit">Continue</button></form>
+    <form method="post" action="/register/code"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label>Invitation code<input name="code" value="{{ code }}" required autofocus></label><button type="submit">Continue</button></form>
   {% endif %}
   <p class="auth-switch"><a href="/login">Back to sign in</a></p>
 </main></body></html>

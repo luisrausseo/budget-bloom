@@ -20,7 +20,15 @@ For a fresh database, run these SQL files in order in the Supabase SQL editor:
 5. `add_category_emojis.sql`
 6. `add_accounts_and_sessions.sql`
 7. `add_household_invitations.sql`
+8. `harden_authentication.sql`
 
 They create month-specific completion records and the normalized category list.
+
+## Outbound proxy
+
+Supabase requests connect directly during local development. On PythonAnywhere,
+the app detects the platform environment and automatically uses
+`http://proxy.server:3128`. Set `OUTBOUND_HTTP_PROXY` only to override this
+behavior for another hosting environment.
 
 The service-role key is used only by the FastAPI server. Never expose it to browser code or commit `.env`.

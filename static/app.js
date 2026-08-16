@@ -5,6 +5,11 @@ document.querySelectorAll('.close').forEach(button => button.addEventListener('c
 document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('click', event => {
   if (event.target === dialog) dialog.close();
 }));
+document.querySelectorAll('[data-autosubmit]').forEach(control => control.addEventListener('change', () => control.form?.submit()));
+document.querySelectorAll('form[data-confirm]').forEach(form => form.addEventListener('submit', event => {
+  if (!window.confirm(form.dataset.confirm)) event.preventDefault();
+}));
+document.querySelectorAll('[data-select]').forEach(input => input.addEventListener('click', () => input.select()));
 const form = document.getElementById('entryForm');
 const dialog = document.getElementById('entryDialog');
 document.querySelectorAll('.edit').forEach(button => button.addEventListener('click', () => {

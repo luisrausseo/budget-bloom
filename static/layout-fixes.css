@@ -69,11 +69,32 @@
 .invite-prompt a { color: var(--green); font-weight: 700; text-decoration: none; }
 .invite-prompt a:hover { text-decoration: underline; }
 .mobile-brand { display: none; }
+.recurring { display:inline-block; margin-left:8px; color:var(--green); font-size:10px; font-weight:700 }
+.check-row { display:flex; align-items:center; gap:10px; padding:12px; border:1px solid var(--line); border-radius:10px }
+.check-row input { width:auto; margin:0 }
+.check-row span, .check-row small { display:block }
+.check-row strong { color:var(--ink) }
+.check-row small { margin-top:2px; font-weight:500 }
 
 header .account-menu { display: flex; align-items: center; gap: 9px; }
 header .account-menu form { display: flex; align-items: center; margin: 0; }
 header .account-menu button { height: 42px; display: inline-flex; align-items: center; justify-content: center; margin: 0; padding: 0 15px; white-space: nowrap; }
 header .account-menu > span { display: inline-flex; align-items: center; height: 42px; padding: 0 5px; }
+.header-link { height: 42px; display: inline-flex; align-items: center; justify-content: center; padding: 0 15px; border: 1px solid #b9cec5; border-radius: 12px; color: var(--green); font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.security-shell { padding-bottom: 60px; }
+.security-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+.security-card { margin-bottom: 18px; padding: 25px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); }
+.security-card h2 { margin-bottom: 6px; font-size: 21px; }
+.security-card > p { margin-bottom: 18px; color: var(--muted); font-size: 13px; }
+.security-card label { display: block; margin: 14px 0; color: var(--muted); font-size: 12px; font-weight: 700; }
+.security-card label input { display: block; width: 100%; margin-top: 6px; }
+.security-message { margin-bottom: 18px; padding: 12px 15px; border-radius: 10px; background: #e8f5d2; color: #477236; }
+.security-list > div { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 15px; border-bottom: 1px solid #edf0ed; }
+.security-list > div:last-child { border-bottom: 0; }
+.security-list span,.security-list small { display: block; }
+.security-list small { margin-top: 3px; color: var(--muted); }
+.danger-button { background: var(--red); }
+.danger-link { padding: 8px 10px; background: transparent; color: var(--red); }
 
 .controls > form {
   display: grid;
@@ -117,6 +138,8 @@ header .account-menu > span { display: inline-flex; align-items: center; height:
   header .account-menu { gap: 6px; }
   header .account-menu > span { display: none; }
   header .account-menu button { height: 39px; padding: 0 11px; font-size: 12px; }
+  header .header-link { height: 39px; padding: 0 11px; font-size: 12px; }
+  .security-grid { grid-template-columns: 1fr; }
   .controls { flex-direction: column; align-items: stretch; }
   .controls > form { width: 100%; grid-template-columns: 1fr; }
   .controls > .ghost { align-self: flex-end; }
