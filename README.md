@@ -31,4 +31,7 @@ the app detects the platform environment and automatically uses
 `http://proxy.server:3128`. Set `OUTBOUND_HTTP_PROXY` only to override this
 behavior for another hosting environment.
 
+The PythonAnywhere hostname is also added automatically to the trusted-host
+list. Custom domains must be added to `ALLOWED_HOSTS` as comma-separated names.
+
 The service-role key is used only by the FastAPI server. Never expose it to browser code or commit `.env`.

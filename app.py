@@ -1,4 +1,5 @@
 import calendar
+import getpass
 import hashlib
 import hmac
 import logging
@@ -24,6 +25,15 @@ load_dotenv(BASE_DIR / ".env")
 
 app = FastAPI(title="Monthly Budget")
 allowed_hosts = [item.strip() for item in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if item.strip()]
+pythonanywhere_domain = os.getenv("PYTHONANYWHERE_DOMAIN", "").strip()
+if not pythonanywhere_domain:
+    pythonanywhere_site = os.getenv("PYTHONANYWHERE_SITE", "").strip()
+    pythonanywhere_domain = pythonanywhere_site.removeprefix("www.")
+if pythonanywhere_domain:
+    pythonanywhere_username = os.getenv("PYTHONANYWHERE_USERNAME", getpass.getuser()).strip()
+    pythonanywhere_host = f"{pythonanywhere_username}.{pythonanywhere_domain}"
+    if pythonanywhere_host not in allowed_hosts:
+        allowed_hosts.append(pythonanywhere_host)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
 if os.getenv("FORCE_HTTPS", "false").lower() == "true":
     app.add_middleware(HTTPSRedirectMiddleware)
