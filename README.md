@@ -33,5 +33,8 @@ behavior for another hosting environment.
 
 The PythonAnywhere hostname is also added automatically to the trusted-host
 list. Custom domains must be added to `ALLOWED_HOSTS` as comma-separated names.
+`FORCE_HTTPS` is automatically bypassed on PythonAnywhere to avoid a redirect
+loop behind its TLS-terminating load balancer; secure cookies and HSTS remain
+enabled when `COOKIE_SECURE=true`.
 
 The service-role key is used only by the FastAPI server. Never expose it to browser code or commit `.env`.

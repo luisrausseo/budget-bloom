@@ -35,7 +35,9 @@ if pythonanywhere_domain:
     if pythonanywhere_host not in allowed_hosts:
         allowed_hosts.append(pythonanywhere_host)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
-if os.getenv("FORCE_HTTPS", "false").lower() == "true":
+# PythonAnywhere terminates TLS before forwarding traffic to the app, so its
+# internal request scheme is always HTTP. Redirecting that request loops forever.
+if os.getenv("FORCE_HTTPS", "false").lower() == "true" and not pythonanywhere_domain:
     app.add_middleware(HTTPSRedirectMiddleware)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Environment(
