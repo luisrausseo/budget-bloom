@@ -12,6 +12,7 @@ document.querySelectorAll('.complete-toggle').forEach(control => control.addEven
   const formData = new FormData(control.form);
   // Send an explicit value even if browser form serialization behavior differs.
   formData.set('completed', control.checked ? 'true' : 'false');
+  formData.set('ajax', 'true');
   control.disabled = true;
   try {
     const response = await fetch(control.form.action, {
@@ -58,8 +59,10 @@ document.querySelectorAll('form[data-delete-entry]').forEach(deleteForm => delet
   const button = deleteForm.querySelector('button[type="submit"], button:not([type])');
   if (button) button.disabled = true;
   try {
+    const formData = new FormData(deleteForm);
+    formData.set('ajax', 'true');
     const response = await fetch(deleteForm.action, {
-      method: 'POST', body: new FormData(deleteForm), headers: {'X-Requested-With': 'fetch'}
+      method: 'POST', body: formData, headers: {'X-Requested-With': 'fetch'}
     });
     if (!response.ok) throw new Error('Unable to delete entry');
     deleteForm.closest('tr').remove();

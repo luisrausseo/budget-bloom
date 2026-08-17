@@ -61,10 +61,16 @@ class Supabase:
         on_pythonanywhere = bool(
             os.getenv("PYTHONANYWHERE_DOMAIN") or os.getenv("PYTHONANYWHERE_SITE")
         )
+        self.on_pythonanywhere = on_pythonanywhere
         self.proxy = configured_proxy or (
             "http://proxy.server:3128" if on_pythonanywhere else None
         )
-        self.client = httpx.AsyncClient(
+        # A standard PythonAnywhere web worker may bridge ASGI onto a different
+        # event loop per request. Reusing an AsyncClient across those loops fails.
+        self.client = None if on_pythonanywhere else self._new_client()
+
+    def _new_client(self) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
             timeout=15, proxy=self.proxy, trust_env=False,
             limits=httpx.Limits(max_connections=20, max_keepalive_connections=10, keepalive_expiry=30),
         )
@@ -84,13 +90,14 @@ class Supabase:
     async def request(self, method: str, table: str, *, params=None, json=None, prefer=None):
         # Use PythonAnywhere's required egress proxy only on that platform.
         # trust_env=False prevents an unrelated local shell proxy from changing app behavior.
-        response = await self.client.request(
-            method,
-            f"{self.url}/rest/v1/{table}",
-            headers=self._headers(prefer),
-            params=params,
-            json=json,
-        )
+        request_args = {
+            "headers": self._headers(prefer), "params": params, "json": json,
+        }
+        if self.client is None:
+            async with self._new_client() as client:
+                response = await client.request(method, f"{self.url}/rest/v1/{table}", **request_args)
+        else:
+            response = await self.client.request(method, f"{self.url}/rest/v1/{table}", **request_args)
         if response.is_error:
             logger.error("Supabase request failed: %s %s returned %s", method, table, response.status_code)
             raise HTTPException(status_code=400, detail="The request could not be completed")
@@ -109,7 +116,8 @@ SESSION_CACHE_SECONDS = 30
 
 @app.on_event("shutdown")
 async def close_http_client():
-    await db.client.aclose()
+    if db.client is not None:
+        await db.client.aclose()
 
 
 @app.middleware("http")
@@ -769,12 +777,12 @@ async def edit_entry(
 @app.post("/entries/{entry_id}/delete")
 async def delete_entry(
     entry_id: int, request: Request, household_id: int = Form(...), month: str = Form(...),
-    person_filter: int | None = Form(None), csrf_token: str = Form(...),
+    person_filter: int | None = Form(None), ajax: bool = Form(False), csrf_token: str = Form(...),
 ):
     require_csrf(request, csrf_token)
     await require_household(request, household_id)
     await db.request("DELETE", "budget_entries", params={"id": f"eq.{entry_id}", "household_id": f"eq.{household_id}"})
-    if request.headers.get("X-Requested-With") == "fetch":
+    if ajax:
         return JSONResponse({"deleted": True, "entry_id": entry_id})
     return redirect_home(household_id, month, person_filter)
 
@@ -782,7 +790,8 @@ async def delete_entry(
 @app.post("/entries/{entry_id}/completion")
 async def set_entry_completion(
     entry_id: int, request: Request, household_id: int = Form(...), month: str = Form(...),
-    completed: bool = Form(False), person_filter: int | None = Form(None), csrf_token: str = Form(...),
+    completed: bool = Form(False), person_filter: int | None = Form(None), ajax: bool = Form(False),
+    csrf_token: str = Form(...),
 ):
     require_csrf(request, csrf_token)
     await require_household(request, household_id)
@@ -793,6 +802,6 @@ async def set_entry_completion(
     })
     if not updated:
         raise HTTPException(404, "Entry not found")
-    if request.headers.get("X-Requested-With") == "fetch":
+    if ajax:
         return JSONResponse({"completed": completed})
     return redirect_home(household_id, start.strftime("%Y-%m"), person_filter)
