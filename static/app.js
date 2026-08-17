@@ -8,12 +8,18 @@ document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('c
 document.querySelectorAll('[data-autosubmit]:not(.complete-toggle)').forEach(control => control.addEventListener('change', () => control.form?.submit()));
 document.querySelectorAll('.complete-toggle').forEach(control => control.addEventListener('change', async () => {
   const original = !control.checked;
+  // Disabled controls are omitted from FormData, so capture the checked value first.
+  const formData = new FormData(control.form);
+  // Send an explicit value even if browser form serialization behavior differs.
+  formData.set('completed', control.checked ? 'true' : 'false');
   control.disabled = true;
   try {
     const response = await fetch(control.form.action, {
-      method: 'POST', body: new FormData(control.form), headers: {'X-Requested-With': 'fetch'}
+      method: 'POST', body: formData, headers: {'X-Requested-With': 'fetch'}
     });
     if (!response.ok) throw new Error('Unable to save completion');
+    const result = await response.json();
+    if (Boolean(result.completed) !== control.checked) throw new Error('Completion was not saved');
     const row = control.closest('tr');
     row.classList.toggle('completed', control.checked);
     const body = row.parentElement;

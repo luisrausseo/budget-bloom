@@ -7,4 +7,4 @@
   <label>Registration page<input value="{{ invite_url }}" readonly data-select></label>
   <label>Code<input value="{{ token }}" readonly data-select></label>
   <p class="auth-switch"><a href="{{ '/' if signed_in else '/login' }}">Done</a></p>
-</main><script src="/static/app.js"></script></body></html>
+</main><script src="/static/app.js?v={{ static_version }}"></script></body></html>

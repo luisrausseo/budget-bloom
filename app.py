@@ -45,6 +45,11 @@ templates = Environment(
     loader=FileSystemLoader(BASE_DIR / "templates"),
     autoescape=select_autoescape(["html", "xml"]),
 )
+templates.globals["static_version"] = str(int(max(
+    (BASE_DIR / "static" / "app.js").stat().st_mtime,
+    (BASE_DIR / "static" / "styles.css").stat().st_mtime,
+    (BASE_DIR / "static" / "layout-fixes.css").stat().st_mtime,
+)))
 
 
 class Supabase:
