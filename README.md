@@ -23,6 +23,7 @@ For a fresh database, run these SQL files in order in the Supabase SQL editor:
 8. `harden_authentication.sql`
 9. `add_dashboard_rpc.sql`
 10. `add_performance_indexes.sql`
+11. `add_admin_dashboard.sql`
 
 They create month-specific completion records and the normalized category list.
 
@@ -32,6 +33,15 @@ Supabase requests connect directly during local development. On PythonAnywhere,
 the app detects the platform environment and automatically uses
 `http://proxy.server:3128`. Set `OUTBOUND_HTTP_PROXY` only to override this
 behavior for another hosting environment.
+
+## Local admin application
+
+Run the separate admin UI on loopback only:
+
+`uvicorn admin:admin_app --host 127.0.0.1 --port 8001`
+
+Then open `http://127.0.0.1:8001`. The admin app returns 404 for non-loopback
+clients and whenever it detects PythonAnywhere.
 
 The PythonAnywhere hostname is also added automatically to the trusted-host
 list. Custom domains must be added to `ALLOWED_HOSTS` as comma-separated names.

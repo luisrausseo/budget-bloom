@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Budget Bloom Admin</title><script src="/static/theme.js?v={{ static_version }}"></script><link rel="stylesheet" href="/static/admin.css?v={{ static_version }}"></head>
+<body><main class="admin-shell">
+  <header><div><p class="eyebrow">LOCAL ADMINISTRATION</p><h1>Budget <em>Bloom</em> <span>Admin</span></h1></div><button class="theme-toggle" type="button" aria-label="Switch color theme">☾</button></header>
+  {% if message %}<p class="notice">{{ message }}</p>{% endif %}
+  <section class="hero"><div><p>TOTAL HOUSEHOLDS</p><strong>{{ metrics.summary.households }}</strong></div><div><p>ACTIVE ACCOUNTS</p><strong>{{ metrics.summary.active_accounts }}</strong></div><div><p>ACTIVE SESSIONS</p><strong>{{ metrics.summary.active_sessions }}</strong></div><div><p>BUDGET ENTRIES</p><strong>{{ metrics.summary.entries }}</strong></div></section>
+  <section class="metric-grid">
+    <article><span>People</span><strong>{{ metrics.summary.people }}</strong><small>Across all households</small></article>
+    <article><span>Recurring entries</span><strong>{{ metrics.summary.recurring_entries }}</strong><small>{{ metrics.summary.completed_this_month }} completed this month</small></article>
+    <article><span>Invitations</span><strong>{{ metrics.summary.active_invitations }}</strong><small>{{ metrics.summary.used_invitations }} redeemed · {{ metrics.summary.expired_invitations }} expired</small></article>
+    <article><span>Disabled accounts</span><strong>{{ metrics.summary.disabled_accounts }}</strong><small>{{ metrics.summary.owners }} owners · {{ metrics.summary.members }} members</small></article>
+  </section>
+  <div class="admin-grid">
+    <section class="panel activity"><div class="panel-title"><div><p class="eyebrow">LAST 12 MONTHS</p><h2>Entry activity</h2></div></div><div class="bar-chart">{% for item in monthly %}<div><span>{{ item.label }}</span><progress value="{{ item.entries }}" max="{{ max_monthly }}"></progress><strong>{{ item.entries }}</strong></div>{% endfor %}</div></section>
+    <section class="panel"><div class="panel-title"><div><p class="eyebrow">PROVISIONING</p><h2>New household</h2></div></div><form method="post" action="/households"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label>Household name<input name="household_name" maxlength="100" required></label><label>Owner username<input name="username" minlength="3" maxlength="50" required></label><label>Temporary password<input name="password" type="password" minlength="12" maxlength="128" required></label><button type="submit">Create household &amp; owner</button></form></section>
+  </div>
+  <section class="panel"><div class="panel-title"><div><p class="eyebrow">DATABASE USAGE</p><h2>Households</h2></div></div><div class="table-wrap"><table><thead><tr><th>Household</th><th>Accounts</th><th>People</th><th>Entries</th><th>Recurring</th><th>Last activity</th></tr></thead><tbody>{% for household in metrics.households %}<tr><td><strong>{{ household.name }}</strong></td><td>{{ household.accounts }}</td><td>{{ household.people }}</td><td>{{ household.entries }}</td><td>{{ household.recurring }}</td><td>{{ household.last_activity[:10] if household.last_activity else 'Never' }}</td></tr>{% endfor %}</tbody></table></div></section>
+  <div class="admin-grid">
+    <section class="panel"><div class="panel-title"><div><p class="eyebrow">TOP CATEGORIES</p><h2>Category usage</h2></div></div><ol class="rank-list">{% for item in metrics.categories %}<li><span>{{ item.name }}</span><strong>{{ item.entries }}</strong></li>{% else %}<li>No category data</li>{% endfor %}</ol></section>
+    <section class="panel"><div class="panel-title"><div><p class="eyebrow">LAST 30 DAYS</p><h2>Security events</h2></div></div><ol class="rank-list">{% for item in metrics.security_events %}<li><span>{{ item.event_type|replace('_',' ')|title }}</span><strong>{{ item.events }}</strong></li>{% else %}<li>No recent events</li>{% endfor %}</ol><form class="maintenance" method="post" action="/maintenance/cleanup"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="secondary" type="submit">Clean expired sessions &amp; invitations</button></form></section>
+  </div>
+</main></body></html>
