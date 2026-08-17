@@ -47,6 +47,7 @@ templates = Environment(
 )
 templates.globals["static_version"] = str(int(max(
     (BASE_DIR / "static" / "app.js").stat().st_mtime,
+    (BASE_DIR / "static" / "theme.js").stat().st_mtime,
     (BASE_DIR / "static" / "styles.css").stat().st_mtime,
     (BASE_DIR / "static" / "layout-fixes.css").stat().st_mtime,
 )))
@@ -303,8 +304,12 @@ def money(value: str) -> Decimal:
     return amount
 
 
-def redirect_home(household_id: int | None = None, month: str | None = None):
-    query = {k: v for k, v in {"household": household_id, "month": month}.items() if v}
+def redirect_home(
+    household_id: int | None = None, month: str | None = None, person_id: int | None = None,
+):
+    query = {k: v for k, v in {
+        "household": household_id, "month": month, "person": person_id,
+    }.items() if v}
     return RedirectResponse(f"/?{urlencode(query)}" if query else "/", status_code=303)
 
 
@@ -675,7 +680,7 @@ async def create_household(request: Request, name: str = Form(...), csrf_token: 
 @app.post("/people")
 async def create_person(
     request: Request, household_id: int = Form(...), name: str = Form(...),
-    month: str = Form(...), csrf_token: str = Form(...),
+    month: str = Form(...), person_filter: int | None = Form(None), csrf_token: str = Form(...),
 ):
     require_csrf(request, csrf_token)
     await require_household(request, household_id)
@@ -683,7 +688,7 @@ async def create_person(
     if not name:
         raise HTTPException(400, "Person name is required")
     await db.request("POST", "people", json={"household_id": household_id, "name": name})
-    return redirect_home(household_id, month)
+    return redirect_home(household_id, month, person_filter)
 
 
 @app.post("/entries")
@@ -691,7 +696,8 @@ async def create_entry(
     request: Request, household_id: int = Form(...), person_id: int = Form(...), entry_type: str = Form(...),
     description: str = Form(...), category_id: int = Form(...), amount: str = Form(...),
     entry_date: date = Form(...), month: str = Form(...),
-    recurring_monthly: bool = Form(False), csrf_token: str = Form(...),
+    recurring_monthly: bool = Form(False), person_filter: int | None = Form(None),
+    csrf_token: str = Form(...),
 ):
     require_csrf(request, csrf_token)
     await require_household(request, household_id)
@@ -707,7 +713,7 @@ async def create_entry(
         "amount": str(money(amount)), "entry_date": entry_date.isoformat(),
         "recurring_monthly": recurring_monthly,
     })
-    return redirect_home(household_id, month)
+    return redirect_home(household_id, month, person_filter)
 
 
 @app.post("/entries/{entry_id}/edit")
@@ -715,7 +721,8 @@ async def edit_entry(
     entry_id: int, request: Request, household_id: int = Form(...), person_id: int = Form(...), entry_type: str = Form(...),
     description: str = Form(...), category_id: int = Form(...), amount: str = Form(...),
     entry_date: date = Form(...), month: str = Form(...),
-    recurring_monthly: bool = Form(False), csrf_token: str = Form(...),
+    recurring_monthly: bool = Form(False), person_filter: int | None = Form(None),
+    csrf_token: str = Form(...),
 ):
     require_csrf(request, csrf_token)
     await require_household(request, household_id)
@@ -756,26 +763,26 @@ async def edit_entry(
         "amount": str(money(amount)), "entry_date": entry_date.isoformat(), "updated_at": datetime.now(UTC).isoformat(),
         **recurrence_payload,
     })
-    return redirect_home(household_id, month)
+    return redirect_home(household_id, month, person_filter)
 
 
 @app.post("/entries/{entry_id}/delete")
 async def delete_entry(
     entry_id: int, request: Request, household_id: int = Form(...), month: str = Form(...),
-    csrf_token: str = Form(...),
+    person_filter: int | None = Form(None), csrf_token: str = Form(...),
 ):
     require_csrf(request, csrf_token)
     await require_household(request, household_id)
     await db.request("DELETE", "budget_entries", params={"id": f"eq.{entry_id}", "household_id": f"eq.{household_id}"})
     if request.headers.get("X-Requested-With") == "fetch":
         return JSONResponse({"deleted": True, "entry_id": entry_id})
-    return redirect_home(household_id, month)
+    return redirect_home(household_id, month, person_filter)
 
 
 @app.post("/entries/{entry_id}/completion")
 async def set_entry_completion(
     entry_id: int, request: Request, household_id: int = Form(...), month: str = Form(...),
-    completed: bool = Form(False), csrf_token: str = Form(...),
+    completed: bool = Form(False), person_filter: int | None = Form(None), csrf_token: str = Form(...),
 ):
     require_csrf(request, csrf_token)
     await require_household(request, household_id)
@@ -788,4 +795,4 @@ async def set_entry_completion(
         raise HTTPException(404, "Entry not found")
     if request.headers.get("X-Requested-With") == "fetch":
         return JSONResponse({"completed": completed})
-    return redirect_home(household_id, start.strftime("%Y-%m"))
+    return redirect_home(household_id, start.strftime("%Y-%m"), person_filter)

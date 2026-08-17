@@ -1,3 +1,42 @@
+.theme-toggle { width: 42px; height: 42px; display: inline-grid; place-items: center; flex: 0 0 42px; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); font-size: 20px; line-height: 1; }
+.brand-home { color: inherit; text-decoration: none; }
+.theme-toggle:hover { border-color: var(--green); color: var(--green); }
+.auth-theme-toggle { position: fixed; z-index: 5; top: 22px; right: 22px; box-shadow: 0 8px 25px rgba(24,51,45,.1); }
+body, .ledger, .stats article, .auth-card, .login-shell, input, select, dialog { transition: background-color .2s ease, border-color .2s ease, color .2s ease; }
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #e8f1ed;
+  --muted: #9eb0aa;
+  --paper: #101815;
+  --card: #19231f;
+  --green: #70c2a7;
+  --lime: #d7ee79;
+  --red: #ee8178;
+  --line: #33413c;
+}
+html[data-theme="dark"] select,
+html[data-theme="dark"] input,
+html[data-theme="dark"] .controls .household-name,
+html[data-theme="dark"] .controls input[type="month"],
+html[data-theme="dark"] .controls select { background: #202d28; color: var(--ink); }
+html[data-theme="dark"] th,
+html[data-theme="dark"] td { border-bottom-color: #2a3732; }
+html[data-theme="dark"] .avatar { background: #263d35; }
+html[data-theme="dark"] .category,
+html[data-theme="dark"] .close,
+html[data-theme="dark"] .type-toggle { background: #25322d; }
+html[data-theme="dark"] .type-toggle input:checked + span { background: #34443e; color: var(--ink); }
+html[data-theme="dark"] .empty { background: var(--card); }
+html[data-theme="dark"] dialog { background: var(--card); color: var(--ink); }
+html[data-theme="dark"] .pill.income { background: #29432d; color: #a9db97; }
+html[data-theme="dark"] .pill.expense { background: #4a2d2a; color: #f1aaa3; }
+html[data-theme="dark"] .stats i.income { background: #29432d; color: #a9db97; }
+html[data-theme="dark"] .stats i.expense { background: #4a2d2a; color: #f1aaa3; }
+html[data-theme="dark"] .auth-error { background: #4a2d2a; color: #f1aaa3; }
+html[data-theme="dark"] .security-message { background: #29432d; color: #a9db97; }
+html[data-theme="dark"] button:not(.ghost):not(.icon):not(.close):not(.theme-toggle):not(.danger-link):not(.danger-button) { background: #397d69; }
+
 .auth-page {
   min-height: 100vh;
   display: grid;

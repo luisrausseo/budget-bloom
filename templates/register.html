@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Use invitation · Budget Bloom</title><link rel="stylesheet" href="/static/styles.css"><link rel="stylesheet" href="/static/layout-fixes.css"></head>
-<body class="auth-page"><main class="auth-card">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Use invitation · Budget Bloom</title><script src="/static/theme.js?v={{ static_version }}"></script><link rel="stylesheet" href="/static/styles.css"><link rel="stylesheet" href="/static/layout-fixes.css"></head>
+<body class="auth-page"><button class="theme-toggle auth-theme-toggle" type="button" aria-label="Switch color theme">☾</button><main class="auth-card">
   <p class="eyebrow">INVITATION ONLY</p><h1>Budget <em>Bloom</em></h1>
   {% if invitation %}
     <h2>Join {{ invitation.households.name }}</h2>
@@ -19,4 +19,4 @@
     <form method="post" action="/register/code"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label>Invitation code<input name="code" value="{{ code }}" required autofocus></label><button type="submit">Continue</button></form>
   {% endif %}
   <p class="auth-switch"><a href="/login">Back to sign in</a></p>
-</main></body></html>
+</main><script src="/static/app.js?v={{ static_version }}"></script></body></html>
