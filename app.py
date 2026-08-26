@@ -812,6 +812,24 @@ async def delete_grocery_item(
     return redirect_groceries()
 
 
+@app.post("/groceries/{item_id}/edit")
+async def edit_grocery_item(
+    item_id: int, request: Request, item_name: str = Form(...),
+    csrf_token: str = Form(...),
+):
+    require_csrf(request, csrf_token)
+    account = await current_account(request)
+    if not account:
+        raise HTTPException(401, "Sign in required")
+    item_name = item_name.strip()
+    if not 1 <= len(item_name) <= 120:
+        raise HTTPException(400, "Grocery item must be 1-120 characters")
+    await db.request("PATCH", "grocery_items", params={
+        "id": f"eq.{item_id}", "household_id": f"eq.{account['household_id']}",
+    }, json={"item_name": item_name})
+    return redirect_groceries()
+
+
 @app.post("/entries/{entry_id}/edit")
 async def edit_entry(
     entry_id: int, request: Request, household_id: int = Form(...), person_id: int = Form(...), entry_type: str = Form(...),

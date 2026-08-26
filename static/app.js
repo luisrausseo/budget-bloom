@@ -104,3 +104,13 @@ dialog?.addEventListener('close', () => {
   document.getElementById('entryTitle').textContent = 'Add entry';
   document.getElementById('entrySubmit').textContent = 'Add entry';
 });
+
+const groceryEditDialog = document.getElementById('groceryEditDialog');
+const groceryEditForm = document.getElementById('groceryEditForm');
+document.querySelectorAll('.grocery-edit').forEach(button => button.addEventListener('click', () => {
+  groceryEditForm.action = `/groceries/${button.dataset.itemId}/edit`;
+  groceryEditForm.item_name.value = button.dataset.itemName;
+  groceryEditDialog.showModal();
+  groceryEditForm.item_name.focus();
+  groceryEditForm.item_name.select();
+}));

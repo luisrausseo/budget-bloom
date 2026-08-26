@@ -204,6 +204,7 @@ header .account-menu > span { display: inline-flex; align-items: center; height:
 .grocery-add-form input { flex:1; min-width:0; border-color:transparent; }
 .grocery-add-form button { white-space:nowrap; background:var(--lime); color:#18332d; }
 .grocery-ledger { min-height:300px; }
+.grocery-actions { min-width:74px; }
 .grocery-table .completed td:nth-child(2) strong { text-decoration:line-through; text-decoration-thickness:2px; }
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 html[data-theme="dark"] .app-tabs a.active { background:#397d69; color:#fff; }
