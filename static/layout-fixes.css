@@ -192,3 +192,30 @@ header .account-menu > span { display: inline-flex; align-items: center; height:
   header { align-items: flex-start; flex-direction: column; padding: 20px 0; }
   header .account-menu { width: 100%; justify-content: flex-end; }
 }
+
+.app-tabs { display:flex; gap:5px; width:max-content; margin:0 0 22px; padding:5px; border:1px solid var(--line); border-radius:13px; background:var(--card); }
+.app-tabs a { padding:9px 15px; border-radius:9px; color:var(--muted); font-size:13px; font-weight:700; text-decoration:none; }
+.app-tabs a.active { background:var(--ink); color:var(--card); }
+.grocery-hero { display:flex; align-items:center; justify-content:space-between; gap:28px; margin-bottom:18px; padding:28px 30px; border-radius:20px; color:#fff; background:linear-gradient(120deg,#173f35,#296c5b); }
+.grocery-hero .eyebrow { color:#b9d2ca; }
+.grocery-hero h2 { margin-bottom:5px; font-size:30px; }
+.grocery-hero p:last-child { color:#c9ddd6; font-size:13px; }
+.grocery-add-form { display:flex; gap:8px; width:min(480px,52%); }
+.grocery-add-form input { flex:1; min-width:0; border-color:transparent; }
+.grocery-add-form button { white-space:nowrap; background:var(--lime); color:#18332d; }
+.grocery-ledger { min-height:300px; }
+.grocery-table .completed td:nth-child(2) strong { text-decoration:line-through; text-decoration-thickness:2px; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+html[data-theme="dark"] .app-tabs a.active { background:#397d69; color:#fff; }
+@media(max-width:650px) {
+  .app-tabs { width:100%; }
+  .app-tabs a { flex:1; text-align:center; }
+  .grocery-hero { align-items:stretch; flex-direction:column; padding:24px; }
+  .grocery-add-form { width:100%; }
+  .grocery-table th:nth-child(3),.grocery-table td:nth-child(3) { display:table-cell!important; }
+  .grocery-table th:nth-child(4),.grocery-table td:nth-child(4) { display:none!important; }
+}
+@media(max-width:430px) {
+  .grocery-add-form { flex-direction:column; }
+  .grocery-table th:nth-child(3),.grocery-table td:nth-child(3) { display:none!important; }
+}

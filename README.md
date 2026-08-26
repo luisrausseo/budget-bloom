@@ -24,6 +24,7 @@ For a fresh database, run these SQL files in order in the Supabase SQL editor:
 9. `add_dashboard_rpc.sql`
 10. `add_performance_indexes.sql`
 11. `add_admin_dashboard.sql`
+12. `add_household_grocery_list.sql`
 
 They create month-specific completion records and the normalized category list.
 

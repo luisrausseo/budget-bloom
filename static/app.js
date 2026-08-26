@@ -27,11 +27,14 @@ document.querySelectorAll('.complete-toggle').forEach(control => control.addEven
     [...body.rows].sort((a, b) => {
       const completed = Number(a.classList.contains('completed')) - Number(b.classList.contains('completed'));
       if (completed) return completed;
+      if (control.classList.contains('grocery-toggle')) {
+        return b.dataset.groceryDate.localeCompare(a.dataset.groceryDate) || Number(b.dataset.groceryId) - Number(a.dataset.groceryId);
+      }
       return b.dataset.entryDate.localeCompare(a.dataset.entryDate) || Number(b.dataset.entryId) - Number(a.dataset.entryId);
     }).forEach(item => body.appendChild(item));
   } catch (error) {
     control.checked = original;
-    window.alert('Could not update this entry. Please try again.');
+    window.alert(`Could not update this ${control.classList.contains('grocery-toggle') ? 'grocery item' : 'entry'}. Please try again.`);
   } finally {
     control.disabled = false;
   }

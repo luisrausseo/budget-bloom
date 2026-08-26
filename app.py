@@ -11,6 +11,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
 
 import httpx
 from dotenv import load_dotenv
@@ -23,6 +24,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
+APP_TIMEZONE = ZoneInfo(os.getenv("APP_TIMEZONE", "America/Denver"))
 
 app = FastAPI(title="Monthly Budget")
 allowed_hosts = [item.strip() for item in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if item.strip()]
@@ -321,6 +323,10 @@ def redirect_home(
     return RedirectResponse(f"/?{urlencode(query)}" if query else "/", status_code=303)
 
 
+def redirect_groceries():
+    return RedirectResponse("/groceries", status_code=303)
+
+
 async def person_in_household(person_id: int, household_id: int) -> bool:
     rows = await db.request(
         "GET", "people", params={"select": "id", "id": f"eq.{person_id}", "household_id": f"eq.{household_id}"}
@@ -409,6 +415,35 @@ async def login_form(request: Request):
     if await current_account(request):
         return RedirectResponse("/", status_code=303)
     return login_page(request)
+
+
+@app.get("/groceries")
+async def grocery_list(request: Request):
+    account = await current_account(request)
+    if not account:
+        return RedirectResponse("/login", status_code=303)
+    household_rows = await db.request(
+        "GET", "households", params={
+            "select": "id,name", "id": f"eq.{account['household_id']}", "limit": "1",
+        },
+    )
+    if not household_rows:
+        raise HTTPException(404, "Household not found")
+    items = await db.request(
+        "GET", "grocery_items", params={
+            "select": "id,item_name,completed,created_at,accounts!grocery_items_added_by_account_id_fkey(username)",
+            "household_id": f"eq.{account['household_id']}",
+            "order": "completed.asc,created_at.desc,id.desc",
+        },
+    )
+    for item in items:
+        item["display_date"] = datetime.fromisoformat(
+            item["created_at"].replace("Z", "+00:00")
+        ).astimezone(APP_TIMEZONE).strftime("%b %d, %Y").replace(" 0", " ")
+    return HTMLResponse(templates.get_template("groceries.html").render(
+        household=household_rows[0], items=items, account=account,
+        csrf_token=session_csrf_token(request),
+    ))
 
 
 @app.post("/login")
@@ -722,6 +757,59 @@ async def create_entry(
         "recurring_monthly": recurring_monthly,
     })
     return redirect_home(household_id, month, person_filter)
+
+
+@app.post("/groceries")
+async def create_grocery_item(
+    request: Request, item_name: str = Form(...), csrf_token: str = Form(...),
+):
+    require_csrf(request, csrf_token)
+    account = await current_account(request)
+    if not account:
+        raise HTTPException(401, "Sign in required")
+    item_name = item_name.strip()
+    if not 1 <= len(item_name) <= 120:
+        raise HTTPException(400, "Grocery item must be 1-120 characters")
+    await db.request("POST", "grocery_items", json={
+        "household_id": account["household_id"],
+        "added_by_account_id": account["id"],
+        "item_name": item_name,
+    })
+    return redirect_groceries()
+
+
+@app.post("/groceries/{item_id}/completion")
+async def set_grocery_item_completion(
+    item_id: int, request: Request, completed: bool = Form(False),
+    ajax: bool = Form(False), csrf_token: str = Form(...),
+):
+    require_csrf(request, csrf_token)
+    account = await current_account(request)
+    if not account:
+        raise HTTPException(401, "Sign in required")
+    updated = await db.request("POST", "rpc/set_grocery_item_completion", json={
+        "p_item_id": item_id, "p_household_id": account["household_id"],
+        "p_completed": completed,
+    })
+    if not updated:
+        raise HTTPException(404, "Grocery item not found")
+    if ajax:
+        return JSONResponse({"completed": completed})
+    return redirect_groceries()
+
+
+@app.post("/groceries/{item_id}/delete")
+async def delete_grocery_item(
+    item_id: int, request: Request, csrf_token: str = Form(...),
+):
+    require_csrf(request, csrf_token)
+    account = await current_account(request)
+    if not account:
+        raise HTTPException(401, "Sign in required")
+    await db.request("DELETE", "grocery_items", params={
+        "id": f"eq.{item_id}", "household_id": f"eq.{account['household_id']}",
+    })
+    return redirect_groceries()
 
 
 @app.post("/entries/{entry_id}/edit")
