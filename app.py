@@ -294,16 +294,6 @@ def date_in_month(source: date, year: int, month: int) -> date:
     return date(year, month, min(source.day, calendar.monthrange(year, month)[1]))
 
 
-def previous_month_start(source: date) -> date:
-    if source.month == 1:
-        return date(source.year - 1, 12, 1)
-    return date(source.year, source.month - 1, 1)
-
-
-def recurrence_in_month(source: date, selected: date, recurring: bool, recurring_until: date | None) -> bool:
-    return recurring and source < selected and (recurring_until is None or selected <= recurring_until)
-
-
 def money(value: str) -> Decimal:
     try:
         amount = Decimal(value).quantize(Decimal("0.01"))
@@ -354,7 +344,7 @@ async def dashboard(request: Request, household: int | None = None, person: str 
         selected_person = None
     start, end = month_bounds(month or date.today().strftime("%Y-%m"))
     selected_month = start.strftime("%Y-%m")
-    dashboard_data = await db.request("POST", "rpc/get_budget_dashboard", json={
+    dashboard_data = await db.request("POST", "rpc/get_budget_dashboard_monthly", json={
         "p_household_id": household, "p_month_start": start.isoformat(), "p_month_end": end.isoformat(),
     })
     active = dashboard_data.get("household") if dashboard_data else None
@@ -362,28 +352,14 @@ async def dashboard(request: Request, household: int | None = None, person: str 
     people = dashboard_data.get("people", []) if dashboard_data else []
     categories = dashboard_data.get("categories", []) if dashboard_data else []
     rows = dashboard_data.get("entries", []) if dashboard_data else []
-    completion_rows = dashboard_data.get("completions", []) if dashboard_data else []
     entries = []
     if active:
+        # The RPC resolves this month's overrides before the person filter and totals.
         if selected_person and any(item["id"] == selected_person for item in people):
             rows = [item for item in rows if item["person_id"] == selected_person]
         else:
             selected_person = None
-        completed_entry_ids = {item["entry_id"] for item in completion_rows}
-        for item in rows:
-            source_date = date.fromisoformat(item["entry_date"])
-            recurring_until = date.fromisoformat(item["recurring_until"]) if item["recurring_until"] else None
-            recurs_in_selected_month = recurrence_in_month(
-                source_date, start, item["recurring_monthly"], recurring_until
-            )
-            if source_date >= start or recurs_in_selected_month:
-                item["source_entry_date"] = item["entry_date"]
-                item["entry_date"] = date_in_month(source_date, start.year, start.month).isoformat()
-                item["completed"] = item["id"] in completed_entry_ids
-                item["recurs_in_selected_month"] = item["recurring_monthly"] and (
-                    recurring_until is None or start <= recurring_until
-                )
-                entries.append(item)
+        entries = rows
         # Keep upcoming work easy to scan: newest incomplete entries first,
         # followed by completed entries in the same newest-first order.
         entries.sort(key=lambda item: (item["entry_date"], item["id"]), reverse=True)
@@ -399,6 +375,8 @@ async def dashboard(request: Request, household: int | None = None, person: str 
         categories=categories,
         selected_person=selected_person,
         selected_month=selected_month,
+        selected_month_end=end.isoformat(),
+        entry_default_date=date_in_month(date.today(), start.year, start.month).isoformat(),
         entries=entries,
         income=income,
         expenses=expenses,
@@ -840,43 +818,20 @@ async def edit_entry(
 ):
     require_csrf(request, csrf_token)
     await require_household(request, household_id)
-    if (entry_type not in {"income", "expense"}
-            or not await person_in_household(person_id, household_id)
-            or not await category_in_household(category_id, household_id)):
+    if entry_type not in {"income", "expense"}:
         raise HTTPException(400, "Invalid entry details")
     if not description.strip():
         raise HTTPException(400, "Description is required")
 
-    existing_rows = await db.request(
-        "GET", "budget_entries",
-        params={
-            "select": "id,entry_date,recurring_monthly,recurring_until",
-            "id": f"eq.{entry_id}", "household_id": f"eq.{household_id}",
-        },
-    )
-    if not existing_rows:
-        raise HTTPException(404, "Entry not found")
-    existing = existing_rows[0]
     selected_start, _ = month_bounds(month)
-    source_date = date.fromisoformat(existing["entry_date"])
-
-    recurrence_payload = {"recurring_monthly": recurring_monthly, "recurring_until": None}
-    if not recurring_monthly and existing["recurring_monthly"] and selected_start > source_date.replace(day=1):
-        # Stopping a recurrence affects this month forward, not its prior history.
-        recurrence_payload = {
-            "recurring_monthly": True,
-            "recurring_until": previous_month_start(selected_start).isoformat(),
-        }
-    elif recurring_monthly and existing["recurring_monthly"] and existing["recurring_until"]:
-        # Editing an earlier occurrence must not silently reactivate a stopped recurrence.
-        recurrence_payload["recurring_until"] = existing["recurring_until"]
-
-    await db.request("PATCH", "budget_entries", params={"id": f"eq.{entry_id}", "household_id": f"eq.{household_id}"}, json={
-        "person_id": person_id, "entry_type": entry_type, "description": description.strip(),
-        "category_id": category_id,
-        "amount": str(money(amount)), "entry_date": entry_date.isoformat(), "updated_at": datetime.now(UTC).isoformat(),
-        **recurrence_payload,
+    updated = await db.request("POST", "rpc/edit_budget_entry_month", json={
+        "p_entry_id": entry_id, "p_household_id": household_id, "p_month": selected_start.isoformat(),
+        "p_person_id": person_id, "p_category_id": category_id, "p_entry_type": entry_type,
+        "p_description": description.strip(), "p_amount": str(money(amount)),
+        "p_entry_date": entry_date.isoformat(), "p_recurring_monthly": recurring_monthly,
     })
+    if not updated:
+        raise HTTPException(404, "Entry not found in the selected month")
     return redirect_home(household_id, month, person_filter)
 
 
@@ -887,7 +842,12 @@ async def delete_entry(
 ):
     require_csrf(request, csrf_token)
     await require_household(request, household_id)
-    await db.request("DELETE", "budget_entries", params={"id": f"eq.{entry_id}", "household_id": f"eq.{household_id}"})
+    selected_start, _ = month_bounds(month)
+    deleted = await db.request("POST", "rpc/delete_budget_entry_from_month", json={
+        "p_entry_id": entry_id, "p_household_id": household_id, "p_month": selected_start.isoformat(),
+    })
+    if not deleted:
+        raise HTTPException(404, "Entry not found in the selected month")
     if ajax:
         return JSONResponse({"deleted": True, "entry_id": entry_id})
     return redirect_home(household_id, month, person_filter)
@@ -902,7 +862,7 @@ async def set_entry_completion(
     require_csrf(request, csrf_token)
     await require_household(request, household_id)
     start, _ = month_bounds(month)
-    updated = await db.request("POST", "rpc/set_budget_entry_completion", json={
+    updated = await db.request("POST", "rpc/set_budget_month_completion", json={
         "p_entry_id": entry_id, "p_household_id": household_id,
         "p_month": start.isoformat(), "p_completed": completed,
     })

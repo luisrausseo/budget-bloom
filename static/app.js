@@ -6,6 +6,17 @@ document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('c
   if (event.target === dialog) dialog.close();
 }));
 document.querySelectorAll('[data-autosubmit]:not(.complete-toggle)').forEach(control => control.addEventListener('change', () => control.form?.submit()));
+document.querySelectorAll('[data-month-step]').forEach(button => button.addEventListener('click', () => {
+  const input = button.form.querySelector('input[name="month"]');
+  const [year, month] = input.value.split('-').map(Number);
+  if (!year || !month) return;
+  const next = year * 12 + month - 1 + Number(button.dataset.monthStep);
+  const nextYear = Math.floor(next / 12);
+  if (nextYear < 1 || nextYear > 9999) return;
+  input.value = `${String(nextYear).padStart(4, '0')}-${String(next % 12 + 1).padStart(2, '0')}`;
+  button.form.querySelectorAll('[data-month-step]').forEach(step => { step.disabled = true; });
+  button.form.requestSubmit();
+}));
 document.querySelectorAll('.complete-toggle').forEach(control => control.addEventListener('change', async () => {
   const original = !control.checked;
   // Disabled controls are omitted from FormData, so capture the checked value first.
@@ -91,16 +102,25 @@ document.querySelectorAll('.edit').forEach(button => button.addEventListener('cl
   form.description.value = entry.description;
   form.category_id.value = entry.category_id;
   form.amount.value = entry.amount;
-  form.entry_date.value = entry.source_entry_date || entry.entry_date;
+  form.entry_date.value = entry.entry_date;
+  form.entry_date.min = entry.recurring_monthly ? `${form.month.value}-01` : '';
+  form.entry_date.max = entry.recurring_monthly ? form.dataset.monthEnd : '';
   form.person_id.value = entry.person_id;
   form.recurring_monthly.checked = entry.recurring_monthly;
+  form.recurring_monthly.disabled = entry.recurring_monthly;
+  document.getElementById('entryRepeat').hidden = entry.recurring_monthly;
+  document.getElementById('entryMonthNote').hidden = !entry.recurring_monthly;
   form.querySelector(`[name="entry_type"][value="${entry.entry_type}"]`).checked = true;
-  document.getElementById('entryTitle').textContent = 'Edit entry';
+  document.getElementById('entryTitle').textContent = entry.recurring_monthly ? 'Edit this month' : 'Edit entry';
   document.getElementById('entrySubmit').textContent = 'Save changes';
   dialog.showModal();
 }));
 dialog?.addEventListener('close', () => {
   form.reset(); form.action = '/entries';
+  form.entry_date.min = ''; form.entry_date.max = '';
+  form.recurring_monthly.disabled = false;
+  document.getElementById('entryRepeat').hidden = false;
+  document.getElementById('entryMonthNote').hidden = true;
   document.getElementById('entryTitle').textContent = 'Add entry';
   document.getElementById('entrySubmit').textContent = 'Add entry';
 });

@@ -25,8 +25,17 @@ For a fresh database, run these SQL files in order in the Supabase SQL editor:
 10. `add_performance_indexes.sql`
 11. `add_admin_dashboard.sql`
 12. `add_household_grocery_list.sql`
+13. `add_monthly_entry_overrides.sql`
 
 They create month-specific completion records and the normalized category list.
+
+Recurring entries use the original values in each following month. Editing one
+occurrence changes only the selected month (including its amount, description,
+person, category, type, or day). Deleting a recurring entry removes the selected
+month and all following months, preserving earlier occurrences and completions.
+Apply `add_monthly_entry_overrides.sql` before deploying this version, then reload
+the app. It adds monthly overrides and new RPCs without rewriting existing entries.
+Previously overwritten or deleted history cannot be reconstructed by this change.
 
 ## Outbound proxy
 
