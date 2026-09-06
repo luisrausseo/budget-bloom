@@ -217,7 +217,6 @@ header .account-menu > span { display: inline-flex; align-items: center; height:
 .grocery-add-form button { white-space:nowrap; background:var(--lime); color:#18332d; }
 .grocery-ledger { min-height:300px; }
 .grocery-actions { min-width:74px; }
-.grocery-table .completed td:nth-child(2) strong { text-decoration:line-through; text-decoration-thickness:2px; }
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 html[data-theme="dark"] .app-tabs a.active { background:#397d69; color:#fff; }
 @media(max-width:650px) {
@@ -225,14 +224,9 @@ html[data-theme="dark"] .app-tabs a.active { background:#397d69; color:#fff; }
   .app-tabs a { flex:1; text-align:center; }
   .grocery-hero { align-items:stretch; flex-direction:column; padding:24px; }
   .grocery-add-form { width:100%; }
-  .grocery-table th:nth-child(3),.grocery-table td:nth-child(3) { display:table-cell!important; }
-  .grocery-table th:nth-child(4),.grocery-table td:nth-child(4) { display:none!important; }
-  .grocery-table th:nth-child(5) { display:table-cell!important; }
-  .grocery-table td.grocery-actions { display:table-cell!important; min-width:74px; padding-left:4px; padding-right:4px; }
 }
 @media(max-width:430px) {
   .grocery-add-form { flex-direction:column; }
-  .grocery-table th:nth-child(3),.grocery-table td:nth-child(3) { display:none!important; }
 }
 
 /* Shared visual rhythm. Keep these after the legacy responsive rules. */
@@ -268,7 +262,6 @@ header .account-menu .theme-toggle { padding: 0; }
 .section-title { gap: 16px; }
 .section-title > button { flex-shrink: 0; }
 td { vertical-align: middle; }
-td:nth-child(2) { overflow-wrap: anywhere; }
 .amount { white-space: nowrap; }
 /* Keep table cells in table layout; flex only the controls inside them. */
 td.actions { display: table-cell; vertical-align: middle; text-align: right; }
@@ -315,10 +308,71 @@ html[data-theme="dark"] .grocery-add-form button { background: var(--lime); colo
 @media (max-width: 430px) {
   .section-title { flex-wrap: wrap; }
   .ledger { padding: 16px 12px; }
-  .action-buttons { flex-direction: column; gap: 0; }
-  .grocery-table td.grocery-actions { min-width: 44px; }
   .complete-heading, .complete-cell { width: 40px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+}
+
+/* Interaction components. Responsive visibility uses named cells, not column numbers. */
+[hidden] { display: none !important; }
+.account-dropdown { position: relative; }
+.account-dropdown summary { cursor: pointer; min-height: 44px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; font-size: 14px; font-weight: 600; list-style: none; }
+.account-dropdown summary::-webkit-details-marker { display: none; }
+.account-dropdown summary:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
+.account-panel { position: absolute; z-index: 10; right: 0; top: calc(100% + 8px); width: 230px; max-width: calc(100vw - 28px); padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); box-shadow: 0 12px 36px #102b2520; }
+.account-panel .account-name { padding: 8px; overflow-wrap: anywhere; font-size: 14px; color: var(--muted); }
+header .account-panel form, header .account-panel button, header .account-panel a { width: 100%; }
+header .account-panel a, header .account-panel form { margin-top: 6px; }
+.controls { flex-wrap: wrap; }
+.controls > form { flex: 1; grid-template-columns: minmax(110px, 1fr) 270px minmax(140px, 1fr); }
+.month-display { position: relative; flex: 1; min-width: 0; text-align: center; padding: 10px 2px; font-size: 15px; font-weight: 600; }
+.month-display input[type="month"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.month-display:focus-within { outline: 3px solid var(--green); outline-offset: 2px; border-radius: 8px; }
+.this-month { display: inline-flex; align-items: center; min-height: 44px; color: var(--green); font-size: 14px; font-weight: 600; }
+.onboarding-note, .list-empty { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+.onboarding-note .ghost { margin: 8px; }
+.type-toggle label { position: relative; }
+.type-toggle input:focus-visible + span { outline: 3px solid var(--green); outline-offset: 2px; }
+.type-toggle span { min-height: 44px; }
+.mobile-meta { display: none; }
+.completed-heading td { padding: 18px 0 8px; border: 0; }
+.completed-disclosure { background: transparent; color: var(--green); padding: 10px; font-size: 14px; text-align: left; }
+html[data-theme="dark"] button.completed-disclosure { background: transparent; }
+.feedback { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 16px; margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.feedback > span { flex: 1; min-width: 120px; }
+.feedback button { flex: 0 0 44px; width: 44px; min-height: 44px; padding: 0; margin: 0; background: transparent; color: var(--ink); font-size: 20px; }
+.feedback a { color: var(--green); font-weight: 600; text-decoration: underline; }
+.feedback-error { border-color: var(--red); }
+body > .feedback { position: fixed; z-index: 20; bottom: max(16px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: min(580px, calc(100% - 28px)); box-shadow: 0 8px 32px #102b2526; }
+.grocery-add-form { flex-wrap: wrap; }
+.grocery-add-form .feedback { flex-basis: 100%; }
+button.is-loading::after { content: ''; display: inline-block; vertical-align: middle; width: 16px; height: 16px; margin-left: 8px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: button-spin .7s linear infinite; }
+button.is-loading { opacity: .65; cursor: wait; }
+.confirm-content { padding: 28px; }
+.confirm-content p { color: var(--muted); }
+.confirm-controls { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+@media (max-width: 720px) {
+  header { flex-direction: row; align-items: center; min-height: 90px; }
+  header .account-menu { width: auto; }
+  .controls > form { grid-template-columns: 1fr; }
+  .controls > .ghost { margin-left: 0; }
+  .controls .this-month { align-self: flex-start; }
+}
+@media (max-width: 650px) {
+  .activity-table, .activity-table tbody { display: block; width: 100%; }
+  .activity-table thead { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .activity-table tr { display: grid; grid-template-columns: 36px minmax(0, 1fr) 44px; gap: 4px 10px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .activity-table td { border: 0; padding: 0; min-width: 0; }
+  .activity-table .complete-cell { grid-column: 1; grid-row: 1 / span 2; width: auto; align-self: center; }
+  .activity-table .description-cell { grid-column: 2; grid-row: 1; align-self: center; }
+  .activity-table .category-cell, .activity-table .person-cell, .activity-table .date-cell, .activity-table .type-column { display: none; }
+  .mobile-meta { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+  .activity-table .amount { grid-column: 2; grid-row: 2; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+  .activity-table .actions { grid-column: 3; grid-row: 1 / span 2; align-self: center; min-width: 0; }
+  .activity-table .action-buttons { flex-direction: column; gap: 0; }
+  .activity-table .completed-heading { display: block; border: 0; padding-bottom: 0; }
+  .activity-table .completed-heading td { display: block; }
+  .grocery-table .description-cell { grid-row: 1 / span 2; }
+  .recurring { margin-left: 0; margin-top: 4px; }
 }

@@ -8,14 +8,14 @@
   <link rel="stylesheet" href="/static/styles.css?v={{ static_version }}">
   <link rel="stylesheet" href="/static/layout-fixes.css?v={{ static_version }}">
 </head>
-<body>
+<body data-household="{{ account.household_id if account else 'guest' }}">
   <main class="shell">
     <header>
       <a class="brand-home" href="/" title="Show whole household for the current month"><p class="eyebrow">HOUSEHOLD FINANCE</p><h1>Budget <em>Bloom</em></h1></a>
-      {% if account %}<div class="account-menu"><span>{{ account.username }}</span><button class="theme-toggle" type="button" aria-label="Switch color theme">☾</button><a class="ghost header-link" href="/security">Security</a>{% if account.role == 'owner' %}<form method="post" action="/invitations"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ghost" type="submit">Invite user</button></form>{% endif %}<form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ghost" type="submit">Sign out</button></form></div>{% endif %}
+      {% if account %}{% include "account_menu.html" %}{% endif %}
     </header>
 
-    {% if account %}<nav class="app-tabs" aria-label="Application sections"><a href="/" class="active" aria-current="page">Monthly budget</a><a href="/groceries">Grocery list</a></nav>{% endif %}
+    {% if account %}<nav class="app-tabs" aria-label="Application sections"><a href="/" data-budget-tab class="active" aria-current="page">Monthly budget</a><a href="/groceries">Grocery list</a></nav>{% endif %}
 
     {% if not active %}
       <section class="empty"><span>⌂</span><h2>Create your household</h2><p>Start by giving your shared budget a home.</p><button data-open="householdDialog">Create household</button></section>
@@ -25,21 +25,21 @@
           <span class="household-name">{{ active.name }}</span>
           <div class="month-navigation" role="group" aria-label="Navigate months">
             <button class="month-step" type="button" data-month-step="-1" aria-label="Previous month" title="Previous month">←</button>
-            <input type="month" name="month" value="{{ selected_month }}" aria-label="Selected month" data-autosubmit>
+            <span class="month-display"><span data-month-label>{{ selected_month_label }}</span><input type="month" name="month" value="{{ selected_month }}" aria-label="Selected month" data-autosubmit></span>
             <button class="month-step" type="button" data-month-step="1" aria-label="Next month" title="Next month">→</button>
           </div>
-          <select name="person" data-autosubmit>
+          <select name="person" aria-label="Filter by person" data-autosubmit>
             <option value="">Whole household</option>
             {% for p in people %}<option value="{{ p.id }}" {% if p.id == selected_person %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
           </select>
         </form>
         <button class="ghost" data-open="personDialog">＋ Add person</button>
-      </nav>
+      <a class="this-month" href="/?month={{ current_month }}{% if selected_person %}&amp;person={{ selected_person }}{% endif %}">This month</a></nav>
 
       <section class="hero {{ 'negative' if balance < 0 else '' }}">
         <p>PROJECTED MONEY LEFT</p>
         <h2 class="balance-total">{{ '-' if balance < 0 else '' }}${{ '{:,.2f}'.format(balance|abs) }}</h2>
-        <span>{{ active.name }} · {{ selected_month }}</span>
+        <span>{{ active.name }} · {{ selected_month_label }}</span>
       </section>
 
       <section class="stats">
@@ -49,14 +49,15 @@
 
       <section class="ledger">
         <div class="section-title"><div><p class="eyebrow">MONTHLY ACTIVITY</p><h2>Entries</h2></div><button data-open="entryDialog" {% if not people %}disabled title="Add a person first"{% endif %}>＋ Add entry</button></div>
+        {% if not people %}<p class="onboarding-note">Add your first person to start budgeting. <button type="button" class="ghost" data-open="personDialog">Add a person</button></p>{% endif %}
         {% if entries %}
-        <div class="table-wrap"><table><thead><tr><th class="complete-heading">Done</th><th>Description</th><th>Category</th><th>Person</th><th>Date</th><th class="type-column">Type</th><th class="right">Amount</th><th></th></tr></thead><tbody>
+        <div class="table-wrap"><table class="budget-table activity-table"><thead><tr><th class="complete-heading">Done</th><th class="description-cell">Description</th><th class="category-cell">Category</th><th class="person-cell">Person</th><th class="date-cell">Date</th><th class="type-column">Type</th><th class="right">Amount</th><th></th></tr></thead><tbody>
           {% for e in entries %}<tr class="{{ 'completed' if e.completed else '' }}" data-entry-date="{{ e.entry_date }}" data-entry-id="{{ e.id }}" data-entry-type="{{ e.entry_type }}" data-amount="{{ e.amount }}">
             <td class="complete-cell"><form method="post" action="/entries/{{ e.id }}/completion"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}">{% if selected_person %}<input type="hidden" name="person_filter" value="{{ selected_person }}">{% endif %}<input class="complete-toggle" type="checkbox" name="completed" value="true" aria-label="Mark {{ e.description }} completed for {{ selected_month }}" {% if e.completed %}checked{% endif %} data-autosubmit></form></td>
-            <td><strong>{{ e.description }}</strong>{% if e.recurs_in_selected_month %}<span class="recurring" title="Repeats monthly">↻ Monthly</span>{% endif %}</td><td><span class="category">{{ e.categories.name }}</span></td><td><span class="avatar">{{ e.people.name[0]|upper }}</span>{{ e.people.name }}</td><td>{{ e.entry_date }}</td>
+            <td class="description-cell"><strong>{{ e.description }}</strong><small class="mobile-meta">{{ e.categories.name }} · {{ e.people.name }} · <time datetime="{{ e.entry_date }}">{{ e.entry_date }}</time></small>{% if e.recurs_in_selected_month %}<span class="recurring" title="Repeats monthly">↻ Monthly</span>{% endif %}</td><td class="category-cell"><span class="category">{{ e.categories.name }}</span></td><td class="person-cell"><span class="avatar">{{ e.people.name[0]|upper }}</span>{{ e.people.name }}</td><td class="date-cell"><time datetime="{{ e.entry_date }}">{{ e.entry_date }}</time></td>
             <td class="type-column"><span class="pill {{ e.entry_type }}">{{ e.entry_type }}</span></td>
             <td class="right amount {{ e.entry_type }}">{{ '+' if e.entry_type == 'income' else '-' }}${{ '{:,.2f}'.format(e.amount|float) }}</td>
-            <td class="actions"><div class="action-buttons"><button class="icon edit" data-entry='{{ e|tojson }}' title="{{ 'Edit this month only' if e.recurring_monthly else 'Edit' }}">✎</button><form method="post" action="/entries/{{ e.id }}/delete" data-delete-entry data-confirm="{{ 'Delete this recurring entry from ' ~ selected_month ~ ' onward? Previous months will be kept.' if e.recurring_monthly else 'Delete this entry?' }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}">{% if selected_person %}<input type="hidden" name="person_filter" value="{{ selected_person }}">{% endif %}<button class="icon" title="{{ 'Delete this and following months' if e.recurring_monthly else 'Delete' }}">×</button></form></div></td>
+            <td class="actions"><div class="action-buttons"><button class="icon edit" aria-label="Edit {{ e.description }}" data-entry='{{ e|tojson }}' title="{{ 'Edit this month only' if e.recurring_monthly else 'Edit' }}">✎</button><form method="post" action="/entries/{{ e.id }}/delete" data-confirm-title="{{ 'Stop recurring entry' if e.recurring_monthly else 'Delete entry' }}" data-delete-entry data-confirm="{{ 'Delete this recurring entry from ' ~ selected_month ~ ' onward? Previous months will be kept.' if e.recurring_monthly else 'Delete this entry?' }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}">{% if selected_person %}<input type="hidden" name="person_filter" value="{{ selected_person }}">{% endif %}<button class="icon" aria-label="{{ 'Stop recurring entry' if e.recurring_monthly else 'Delete entry' }}" title="{{ 'Delete this and following months' if e.recurring_monthly else 'Delete' }}">×</button></form></div></td>
           </tr>{% endfor %}
         </tbody></table></div>
         {% else %}<div class="empty small"><span>◎</span><h3>No entries this month</h3><p>Add income or an expense to see your projection.</p></div>{% endif %}
@@ -64,20 +65,20 @@
     {% endif %}
   </main>
 
-  <dialog id="householdDialog"><form method="post" action="/households"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="button" class="close">×</button><p class="eyebrow">NEW SPACE</p><h2>Create household</h2><label>Name<input name="name" placeholder="The Johnsons" required></label><button type="submit">Create household</button></form></dialog>
+  <dialog id="householdDialog" aria-labelledby="householdDialogHeading"><form method="post" action="/households"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="button" class="close" aria-label="Close dialog">×</button><p class="eyebrow">NEW SPACE</p><h2 id="householdDialogHeading">Create household</h2><label>Name<input name="name" placeholder="The Johnsons" required></label><button type="submit">Create household</button></form></dialog>
   {% if active %}
-  <dialog id="personDialog"><form method="post" action="/people"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="button" class="close">×</button><p class="eyebrow">NEW MEMBER</p><h2>Add a person</h2><input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}">{% if selected_person %}<input type="hidden" name="person_filter" value="{{ selected_person }}">{% endif %}<label>Name<input name="name" placeholder="Person's name" required></label><button type="submit">Add person</button></form></dialog>
-  <dialog id="entryDialog">
+  <dialog id="personDialog" aria-labelledby="personDialogHeading"><form method="post" action="/people"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="button" class="close" aria-label="Close dialog">×</button><p class="eyebrow">NEW MEMBER</p><h2 id="personDialogHeading">Add a person</h2><input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}">{% if selected_person %}<input type="hidden" name="person_filter" value="{{ selected_person }}">{% endif %}<label>Name<input name="name" placeholder="Person's name" required></label><button type="submit">Add person</button></form></dialog>
+  <dialog id="entryDialog" aria-labelledby="entryTitle">
     <form method="post" action="/entries" id="entryForm" data-month-end="{{ selected_month_end }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <button type="button" class="close">×</button><p class="eyebrow">MONTHLY ACTIVITY</p><h2 id="entryTitle">Add entry</h2>
+      <button type="button" class="close" aria-label="Close dialog">×</button><p class="eyebrow">MONTHLY ACTIVITY</p><h2 id="entryTitle">Add entry</h2>
       <p id="entryMonthNote" class="entry-month-note" hidden>Changes apply only to {{ selected_month }}. Earlier and later months keep their existing values. To stop this entry from this month onward, use Delete in the list.</p>
       <input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}">
       {% if selected_person %}<input type="hidden" name="person_filter" value="{{ selected_person }}">{% endif %}
-      <div class="type-toggle"><label><input type="radio" name="entry_type" value="expense" checked><span>Expense</span></label><label><input type="radio" name="entry_type" value="income"><span>Income</span></label></div>
+      <div class="type-toggle" role="group" aria-label="Entry type"><label><input type="radio" name="entry_type" value="expense" checked><span>Expense</span></label><label><input type="radio" name="entry_type" value="income"><span>Income</span></label></div>
       <label>Description<input name="description" placeholder="Account or payment name…" required></label>
       <label>Category<select name="category_id" required>{% for category in categories %}<option value="{{ category.id }}">{{ category.name }}</option>{% endfor %}</select></label>
-      <div class="grid"><label>Amount<input name="amount" type="number" min="0.01" step="0.01" placeholder="0.00" required></label><label>Date<input name="entry_date" type="date" value="{{ entry_default_date }}" required></label></div>
+      <div class="grid"><label>Amount<input name="amount" inputmode="decimal" type="number" min="0.01" step="0.01" placeholder="0.00" required></label><label>Date<input name="entry_date" type="date" value="{{ entry_default_date }}" required></label></div>
       <label>Person<select name="person_id" required>{% for p in people %}<option value="{{ p.id }}" {% if p.id == selected_person %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select></label>
       <label id="entryRepeat" class="check-row"><input name="recurring_monthly" type="checkbox" value="true"><span><strong>Repeat monthly</strong><small>Include this entry in every following month</small></span></label>
       <button type="submit" id="entrySubmit">Add entry</button>

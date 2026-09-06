@@ -6,5 +6,7 @@
   <p class="invite-note">This invitation expires {{ expires }} and can create one account.</p>
   <label>Registration page<input value="{{ invite_url }}" readonly data-select></label>
   <label>Code<input value="{{ token }}" readonly data-select></label>
+  <button type="button" data-copy-invitation>Copy invitation</button>
+  <p class="invite-note">Copies the registration link and the one-use code together.</p>
   <p class="auth-switch"><a href="{{ '/' if signed_in else '/login' }}">Done</a></p>
 </main><script src="/static/app.js?v={{ static_version }}"></script></body></html>

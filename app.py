@@ -126,6 +126,14 @@ async def close_http_client():
 async def security_headers(request: Request, call_next):
     started = time.perf_counter()
     response = await call_next(request)
+    # Enhanced forms receive the successful destination before a second GET.
+    # Keep all Set-Cookie headers (including login/logout and CSRF rotation).
+    if request.method == "POST" and request.headers.get("X-Requested-With") == "ux-form" and response.status_code == 303:
+        original = response
+        response = JSONResponse({"redirect": original.headers["location"]})
+        for key, value in original.raw_headers:
+            if key.lower() == b"set-cookie":
+                response.raw_headers.append((key, value))
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; script-src 'self'; "
         "style-src 'self' https://fonts.googleapis.com; "
@@ -375,6 +383,8 @@ async def dashboard(request: Request, household: int | None = None, person: str 
         categories=categories,
         selected_person=selected_person,
         selected_month=selected_month,
+        selected_month_label=start.strftime("%B %Y"),
+        current_month=date.today().strftime("%Y-%m"),
         selected_month_end=end.isoformat(),
         entry_default_date=date_in_month(date.today(), start.year, start.month).isoformat(),
         entries=entries,
@@ -602,8 +612,12 @@ async def change_password(
     )
     if not rows or not password_matches(current_password, rows[0]["password_hash"]):
         await audit_event(request, "password_change_failed", account)
+        if request.headers.get("X-Requested-With") == "ux-form":
+            raise HTTPException(400, "Current password is incorrect")
         return RedirectResponse("/security?message=Current+password+is+incorrect", status_code=303)
     if len(new_password) < 12 or len(new_password) > 128:
+        if request.headers.get("X-Requested-With") == "ux-form":
+            raise HTTPException(400, "New password must be 12–128 characters")
         return RedirectResponse("/security?message=New+password+must+be+12-128+characters", status_code=303)
     await db.request("PATCH", "accounts", params={"id": f"eq.{account['id']}"}, json={
         "password_hash": password_hash(new_password), "password_changed_at": datetime.now(UTC).isoformat(),

@@ -12,9 +12,9 @@ const form = {dataset:{monthEnd:'2026-04-30'}, month:{value:'2026-04'},
 const dialog = {addEventListener:(name,fn)=>{handlers[name]=fn;},showModal:()=>{handlers.opened=true;}};
 const nodes = {entryForm:form, entryDialog:dialog, entryRepeat:{}, entryMonthNote:{}, entryTitle:{}, entrySubmit:{}};
 const button = {dataset:{entry:JSON.stringify(entry)},addEventListener:(_,fn)=>{handlers.edit=fn;}};
-const document = {getElementById:id=>nodes[id] || null,
+const document = {body:{dataset:{}}, querySelector:()=>null, getElementById:id=>nodes[id] || null,
   querySelectorAll:selector=>selector==='.edit'?[button]:[]};
-vm.runInNewContext(fs.readFileSync('static/app.js','utf8'),{document});
+vm.runInNewContext(fs.readFileSync('static/app.js','utf8'),{document, window:{addEventListener:()=>{}}});
 handlers.edit();
 assert.equal(form.entry_date.value,'2026-04-15');
 assert.equal(form.entry_date.min,'2026-04-01');

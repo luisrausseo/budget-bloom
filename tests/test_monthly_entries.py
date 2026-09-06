@@ -47,6 +47,26 @@ class MonthlyEntryRoutes(unittest.IsolatedAsyncioTestCase):
         self.request_db.assert_awaited_once_with('POST', 'rpc/delete_budget_entry_from_month', json={
             'p_entry_id': 7, 'p_household_id': 1, 'p_month': '2026-04-01'})
 
+    async def test_enhanced_save_returns_destination_without_following_redirect(self):
+        response = await self.client.post('/entries/7/edit', data=self.form(),
+            headers={'X-Requested-With': 'ux-form'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'redirect': '/?household=1&month=2026-04&person=3'})
+        self.assertIn("default-src 'self'", response.headers['content-security-policy'])
+
+    async def test_enhanced_logout_preserves_cookie_deletion(self):
+        with patch.object(budget, 'audit_event', AsyncMock()):
+            response = await self.client.post('/logout', data={'csrf_token': self.csrf},
+                headers={'X-Requested-With': 'ux-form'})
+        self.assertEqual(response.json(), {'redirect': '/login'})
+        self.assertIn('Max-Age=0', response.headers['set-cookie'])
+
+    async def test_enhanced_forms_still_enforce_csrf(self):
+        response = await self.client.post('/entries/7/edit', data={**self.form(), 'csrf_token':'wrong'},
+            headers={'X-Requested-With':'ux-form'})
+        self.assertEqual(response.status_code, 403)
+        self.request_db.assert_not_awaited()
+
     async def test_nonexistent_occurrence_does_not_report_success(self):
         self.request_db.return_value = False
         response = await self.client.post('/entries/7/delete', data={**self.form(), 'ajax': 'true'})

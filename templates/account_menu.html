@@ -1,0 +1,14 @@
+<div class="account-menu">
+  <button class="theme-toggle" type="button" aria-label="Switch color theme">☾</button>
+  <details class="account-dropdown">
+    <summary>Account <span aria-hidden="true">▾</span></summary>
+    <div class="account-panel">
+      <p class="account-name">{{ account.username }}</p>
+      <a class="header-link" href="/security">Security &amp; access</a>
+      {% if account.role == 'owner' %}
+      <form method="post" action="/invitations"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ghost" type="submit">Invite user</button></form>
+      {% endif %}
+      <form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ghost" type="submit">Sign out</button></form>
+    </div>
+  </details>
+</div>
