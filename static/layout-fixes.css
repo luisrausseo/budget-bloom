@@ -234,3 +234,89 @@ html[data-theme="dark"] .app-tabs a.active { background:#397d69; color:#fff; }
   .grocery-add-form { flex-direction:column; }
   .grocery-table th:nth-child(3),.grocery-table td:nth-child(3) { display:none!important; }
 }
+
+/* Shared visual rhythm. Keep these after the legacy responsive rules. */
+body { font-size: 16px; line-height: 1.5; }
+button, input, select, textarea { font-family: inherit; font-weight: 500; font-size: 14px; line-height: 1.4; }
+button { font-weight: 600; }
+button, .header-link, .app-tabs a { min-height: 44px; }
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select { min-height: 44px; }
+button, a, input, select { -webkit-tap-highlight-color: transparent; }
+:where(button, a, input, select, textarea):focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
+button:not(:disabled):hover, .header-link:hover { filter: brightness(.94); }
+h1, h2, h3 { line-height: 1.2; }
+h1 { font-size: clamp(25px, 3vw, 29px); }
+.eyebrow { font-size: 11px; letter-spacing: 1.5px; color: var(--muted); }
+.section-title h2, .security-card h2, dialog h2 { font-size: clamp(22px, 2.5vw, 26px); }
+.hero h2 { font-size: clamp(32px, 5vw, 52px); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.stats strong, .amount { font-variant-numeric: tabular-nums; }
+.stats article, .stats article > div, .controls > form, .security-card { min-width: 0; }
+.stats strong { overflow-wrap: anywhere; }
+.stats i { flex-shrink: 0; }
+.category, .pill, .recurring { font-size: 12px; }
+.category { white-space: normal; }
+.login-form-panel label, .auth-card label, .security-card label, dialog label { font-size: 14px; }
+.login-subtitle, .security-card > p, .grocery-hero p:last-child { font-size: 15px; line-height: 1.6; }
+header { gap: 20px; }
+header .account-menu { flex-wrap: wrap; justify-content: flex-end; }
+header .account-menu button, header .header-link { height: 44px; }
+header .account-menu .theme-toggle { padding: 0; }
+.controls { gap: 12px; }
+.controls .household-name, .controls input[type="month"], .controls select { height: 44px; }
+.controls .month-step { flex-basis: 44px; height: 44px; }
+.app-tabs a { display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.section-title { gap: 16px; }
+.section-title > button { flex-shrink: 0; }
+td { vertical-align: middle; }
+td:nth-child(2) { overflow-wrap: anywhere; }
+.amount { white-space: nowrap; }
+.actions { align-items: center; }
+.actions .icon { min-width: 44px; min-height: 44px; color: var(--muted); }
+.complete-toggle { width: 28px; height: 28px; }
+.complete-cell { padding-top: 8px; padding-bottom: 8px; }
+.complete-cell form { min-height: 44px; display: flex; align-items: center; justify-content: center; }
+.completed td:not(.actions):not(.complete-cell) { opacity: .75; }
+.security-list > div { padding: 12px 0; border-color: var(--line); }
+.security-list span { min-width: 0; overflow-wrap: anywhere; }
+.security-list button { flex-shrink: 0; }
+dialog { max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; }
+dialog h2 { padding-right: 36px; }
+.close { width: 44px; height: 44px; top: 14px; right: 14px; }
+.auth-page { min-height: 100dvh; }
+.auth-card { overflow-wrap: anywhere; }
+.brand-mark { color: #18332d; }
+html[data-theme="dark"] .amount.income { color: #a9db97; }
+html[data-theme="dark"] .controls .month-step { background: var(--card); color: var(--green); }
+html[data-theme="dark"] .grocery-add-form button { background: var(--lime); color: #18332d; }
+@media (max-width: 900px) {
+  header { height: auto; min-height: 105px; padding: 20px 0; flex-wrap: wrap; }
+  .controls { flex-wrap: wrap; }
+  .controls > form { width: 100%; }
+  .controls > .ghost { margin-left: auto; }
+}
+@media (max-width: 720px) {
+  .shell { width: calc(100% - 28px); }
+  header .account-menu { gap: 6px; }
+  header .account-menu button, header .header-link { font-size: 14px; padding: 0 10px; }
+  input:not([type="checkbox"]):not([type="radio"]), select,
+  .controls input[type="month"], .controls select { font-size: 16px; }
+  .ledger, .security-card { padding: 18px; }
+  .hero, .grocery-hero { padding: 24px; }
+  .login-form-panel { padding: 36px 24px; }
+  .auth-card { padding: 28px 24px; }
+  .auth-theme-toggle { top: 12px; right: 12px; }
+  .auth-page { padding: 72px 16px 24px; }
+  dialog > form { padding: 26px 22px; }
+  .table-wrap { margin: 0 -6px; }
+  th, td { padding: 12px 6px; }
+}
+@media (max-width: 430px) {
+  .section-title { flex-wrap: wrap; }
+  .ledger { padding: 16px 12px; }
+  .actions { flex-direction: column; gap: 0; }
+  .grocery-table td.grocery-actions { min-width: 44px; }
+  .complete-heading, .complete-cell { width: 40px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+}
