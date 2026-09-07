@@ -8,6 +8,8 @@ const storage = {
 function notice(message, error = false, host = document.body, signIn = false) {
   let box = host.querySelector(':scope > .feedback');
   if (!box) { box = document.createElement('div'); box.className = 'feedback'; host.append(box); }
+  clearTimeout(box._dismissTimer);
+  if (!error) box._dismissTimer = setTimeout(() => box.remove(), 3500);
   box.replaceChildren();
   box.classList.toggle('feedback-error', error);
   box.setAttribute('role', error ? 'alert' : 'status');
@@ -15,6 +17,23 @@ function notice(message, error = false, host = document.body, signIn = false) {
   if (signIn) {
     const link = document.createElement('a'); link.href = '/login'; link.target = '_blank'; link.rel = 'noopener';
     link.textContent = 'Sign in in a new tab'; box.append(link);
+    if (document.body.dataset.household) {
+      const refresh = document.createElement('button'); refresh.type = 'button'; refresh.className = 'refresh-session';
+      refresh.textContent = 'Refresh session';
+      refresh.addEventListener('click', async () => {
+        refresh.disabled = true;
+        try {
+          const response = await fetch(location.href, {cache:'no-store'});
+          if (!response.ok) throw new Error('Could not refresh the session. Sign in first, then try again.');
+          const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+          const csrf = page.querySelector('[name="csrf_token"]')?.value;
+          if (!csrf || page.body.dataset.household !== document.body.dataset.household) throw new Error('Sign in to this household first, then refresh the session again.');
+          document.querySelectorAll('[name="csrf_token"]').forEach(input => { input.value = csrf; });
+          notice('Session refreshed. Your input is unchanged; you can save again.', false, host);
+        } catch (error) { text.textContent = error.message; refresh.disabled = false; }
+      });
+      box.append(refresh);
+    }
   }
   const dismiss = document.createElement('button'); dismiss.type = 'button'; dismiss.textContent = '×';
   dismiss.setAttribute('aria-label', 'Dismiss message'); dismiss.addEventListener('click', () => box.remove()); box.append(dismiss);
@@ -90,12 +109,18 @@ if (monthInput) {
   if (person) params.set('person', person);
   storage.set(contextKey, params.toString());
 }
-document.querySelectorAll('[data-budget-tab]').forEach(link => {
+document.querySelectorAll('[data-budget-tab], [data-person-link]').forEach(link => {
   const context = new URLSearchParams(storage.get(contextKey) || ''); const safe = new URLSearchParams();
   if (/^\d{4}-\d{2}$/.test(context.get('month') || '')) safe.set('month', context.get('month'));
   if (/^\d+$/.test(context.get('person') || '')) safe.set('person', context.get('person'));
+  if (link.hasAttribute('data-person-link')) safe.set('add_person', '1');
   link.href = safe.size ? '/?' + safe : '/';
 });
+if (document.getElementById('personDialog') && new URLSearchParams(location.search).has('add_person')) {
+  document.getElementById('personDialog').showModal();
+  const url = new URL(location.href); url.searchParams.delete('add_person');
+  history.replaceState(null, '', url);
+}
 document.querySelectorAll('.brand-home').forEach(link => link.addEventListener('click', () => storage.remove(contextKey)));
 document.querySelectorAll('[data-autosubmit]:not(.complete-toggle)').forEach(control => control.addEventListener('change', () => control.form?.requestSubmit()));
 document.querySelectorAll('[data-month-step]').forEach(button => button.addEventListener('click', () => {
@@ -114,7 +139,9 @@ function groupCompleted(table) {
   let heading = body.querySelector('.completed-heading');
   if (!heading) {
     heading = document.createElement('tr'); heading.className = 'completed-heading';
+    heading.setAttribute('role', 'row');
     const cell = document.createElement('td'); cell.colSpan = table.tHead.rows[0].cells.length;
+    cell.setAttribute('role', 'cell');
     const button = document.createElement('button'); button.type = 'button'; button.className = 'completed-disclosure';
     table.dataset.completedKey = contextKey + (table.classList.contains('grocery-table') ? '-groceries' : '-budget');
     button.setAttribute('aria-expanded', storage.get(table.dataset.completedKey) !== 'closed' ? 'true' : 'false');
@@ -169,12 +196,15 @@ document.querySelectorAll('form[method="post"]').forEach(form => form.addEventLi
   }
   const data = new FormData(form); if (form.hasAttribute('data-delete-entry')) data.set('ajax', 'true');
   const submitter = event.submitter || form.querySelector('button[type="submit"]');
-  const host = form.closest('.account-panel, td') ? document.body : form;
+  const editor = form._editDialog?.open ? form._editDialog : null;
+  const host = editor ? editor.querySelector('form') : form.closest('.account-panel, td') ? document.body : form;
   host.querySelector(':scope > .feedback')?.remove(); busy(form, true, submitter); let navigating = false;
+  if (editor) busy(host, true, host.querySelector('.dialog-delete'));
   try {
     const {payload, isJSON} = await readResponse(await fetch(form.action, {method:'POST', body:data, headers:{'X-Requested-With':'ux-form'}}));
     if (isJSON && payload.deleted) {
       const table = form.closest('table'); form.closest('tr').remove(); refreshDashboardTotals(); groupCompleted(table);
+      editor?.close();
       table.closest('.ledger').querySelector('.section-title button')?.focus(); notice('Entry removed. Earlier months of recurring entries are unchanged.');
     } else if (isJSON && payload.redirect) {
       const url = new URL(payload.redirect, location.origin); if (url.origin !== location.origin) throw new Error('Unexpected destination. Please reload.');
@@ -195,7 +225,10 @@ document.querySelectorAll('form[method="post"]').forEach(form => form.addEventLi
       }
     } else throw new Error('The save was not confirmed. Check the list before trying again.');
   } catch (error) { failure(error, host); }
-  finally { if (!navigating) busy(form, false, submitter); }
+  finally {
+    if (!navigating) busy(form, false, submitter);
+    if (editor) busy(host, false, host.querySelector('.dialog-delete'));
+  }
 }));
 document.querySelectorAll('[data-select]').forEach(input => input.addEventListener('click', () => input.select()));
 document.querySelectorAll('[data-copy-invitation]').forEach(button => button.addEventListener('click', async () => {
@@ -215,8 +248,14 @@ window.addEventListener('pageshow', () => {
 
 const form = document.getElementById('entryForm');
 const dialog = document.getElementById('entryDialog');
+const entryDelete = document.getElementById('entryDelete');
+let entryDeleteForm = null;
+entryDelete?.addEventListener('click', () => entryDeleteForm?.requestSubmit());
 document.querySelectorAll('.edit').forEach(button => button.addEventListener('click', () => {
   const entry = JSON.parse(button.dataset.entry);
+  entryDeleteForm = button.closest('tr').querySelector('[data-delete-entry]');
+  entryDeleteForm._editDialog = dialog;
+  entryDelete.hidden = false;
   form.action = `/entries/${entry.id}/edit`;
   form.description.value = entry.description;
   form.category_id.value = entry.category_id;
@@ -235,6 +274,9 @@ document.querySelectorAll('.edit').forEach(button => button.addEventListener('cl
   dialog.showModal();
 }));
 dialog?.addEventListener('close', () => {
+  entryDelete.hidden = true;
+  entryDeleteForm = null;
+  form.querySelector('.feedback')?.remove();
   form.reset(); form.action = '/entries';
   form.entry_date.min = ''; form.entry_date.max = '';
   form.recurring_monthly.disabled = false;
@@ -246,11 +288,20 @@ dialog?.addEventListener('close', () => {
 
 const groceryEditDialog = document.getElementById('groceryEditDialog');
 const groceryEditForm = document.getElementById('groceryEditForm');
+const groceryDelete = document.getElementById('groceryDelete');
+let groceryDeleteForm = null;
+groceryDelete?.addEventListener('click', () => groceryDeleteForm?.requestSubmit());
 document.querySelectorAll('.grocery-edit').forEach(button => button.addEventListener('click', () => {
+  groceryDeleteForm = button.closest('tr').querySelector('[data-delete-grocery]');
+  groceryDeleteForm._editDialog = groceryEditDialog;
   groceryEditForm.action = `/groceries/${button.dataset.itemId}/edit`;
   groceryEditForm.item_name.value = button.dataset.itemName;
   groceryEditDialog.showModal();
   groceryEditForm.item_name.focus();
   groceryEditForm.item_name.select();
 }));
+groceryEditDialog?.addEventListener('close', () => {
+  groceryDeleteForm = null;
+  groceryEditForm.querySelector('.feedback')?.remove();
+});
 })();

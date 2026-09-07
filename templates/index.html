@@ -22,7 +22,6 @@
     {% else %}
       <nav class="controls">
         <form method="get">
-          <span class="household-name">{{ active.name }}</span>
           <div class="month-navigation" role="group" aria-label="Navigate months">
             <button class="month-step" type="button" data-month-step="-1" aria-label="Previous month" title="Previous month">←</button>
             <span class="month-display"><span data-month-label>{{ selected_month_label }}</span><input type="month" name="month" value="{{ selected_month }}" aria-label="Selected month" data-autosubmit></span>
@@ -33,7 +32,6 @@
             {% for p in people %}<option value="{{ p.id }}" {% if p.id == selected_person %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
           </select>
         </form>
-        <button class="ghost" data-open="personDialog">＋ Add person</button>
       <a class="this-month" href="/?month={{ current_month }}{% if selected_person %}&amp;person={{ selected_person }}{% endif %}">This month</a></nav>
 
       <section class="hero {{ 'negative' if balance < 0 else '' }}">
@@ -49,15 +47,15 @@
 
       <section class="ledger">
         <div class="section-title"><div><p class="eyebrow">MONTHLY ACTIVITY</p><h2>Entries</h2></div><button data-open="entryDialog" {% if not people %}disabled title="Add a person first"{% endif %}>＋ Add entry</button></div>
-        {% if not people %}<p class="onboarding-note">Add your first person to start budgeting. <button type="button" class="ghost" data-open="personDialog">Add a person</button></p>{% endif %}
+        {% if not people %}<p class="onboarding-note">To start budgeting, open Account and choose Add person.</p>{% endif %}
         {% if entries %}
-        <div class="table-wrap"><table class="budget-table activity-table"><thead><tr><th class="complete-heading">Done</th><th class="description-cell">Description</th><th class="category-cell">Category</th><th class="person-cell">Person</th><th class="date-cell">Date</th><th class="type-column">Type</th><th class="right">Amount</th><th></th></tr></thead><tbody>
-          {% for e in entries %}<tr class="{{ 'completed' if e.completed else '' }}" data-entry-date="{{ e.entry_date }}" data-entry-id="{{ e.id }}" data-entry-type="{{ e.entry_type }}" data-amount="{{ e.amount }}">
-            <td class="complete-cell"><form method="post" action="/entries/{{ e.id }}/completion"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}">{% if selected_person %}<input type="hidden" name="person_filter" value="{{ selected_person }}">{% endif %}<input class="complete-toggle" type="checkbox" name="completed" value="true" aria-label="Mark {{ e.description }} completed for {{ selected_month }}" {% if e.completed %}checked{% endif %} data-autosubmit></form></td>
-            <td class="description-cell"><strong>{{ e.description }}</strong><small class="mobile-meta">{{ e.categories.name }} · {{ e.people.name }} · <time datetime="{{ e.entry_date }}">{{ e.entry_date }}</time></small>{% if e.recurs_in_selected_month %}<span class="recurring" title="Repeats monthly">↻ Monthly</span>{% endif %}</td><td class="category-cell"><span class="category">{{ e.categories.name }}</span></td><td class="person-cell"><span class="avatar">{{ e.people.name[0]|upper }}</span>{{ e.people.name }}</td><td class="date-cell"><time datetime="{{ e.entry_date }}">{{ e.entry_date }}</time></td>
-            <td class="type-column"><span class="pill {{ e.entry_type }}">{{ e.entry_type }}</span></td>
-            <td class="right amount {{ e.entry_type }}">{{ '+' if e.entry_type == 'income' else '-' }}${{ '{:,.2f}'.format(e.amount|float) }}</td>
-            <td class="actions"><div class="action-buttons"><button class="icon edit" aria-label="Edit {{ e.description }}" data-entry='{{ e|tojson }}' title="{{ 'Edit this month only' if e.recurring_monthly else 'Edit' }}">✎</button><form method="post" action="/entries/{{ e.id }}/delete" data-confirm-title="{{ 'Stop recurring entry' if e.recurring_monthly else 'Delete entry' }}" data-delete-entry data-confirm="{{ 'Delete this recurring entry from ' ~ selected_month ~ ' onward? Previous months will be kept.' if e.recurring_monthly else 'Delete this entry?' }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}">{% if selected_person %}<input type="hidden" name="person_filter" value="{{ selected_person }}">{% endif %}<button class="icon" aria-label="{{ 'Stop recurring entry' if e.recurring_monthly else 'Delete entry' }}" title="{{ 'Delete this and following months' if e.recurring_monthly else 'Delete' }}">×</button></form></div></td>
+        <div class="table-wrap"><table role="table" class="budget-table activity-table"><thead role="rowgroup"><tr role="row"><th role="columnheader" class="complete-heading">Done</th><th role="columnheader" class="description-cell">Description</th><th role="columnheader" class="category-cell">Category</th><th role="columnheader" class="person-cell">Person</th><th role="columnheader" class="date-cell">Date</th><th role="columnheader" class="type-column">Type</th><th role="columnheader" class="right">Amount</th><th role="columnheader"></th></tr></thead><tbody role="rowgroup">
+          {% for e in entries %}<tr role="row" class="{{ 'completed' if e.completed else '' }}" data-entry-date="{{ e.entry_date }}" data-entry-id="{{ e.id }}" data-entry-type="{{ e.entry_type }}" data-amount="{{ e.amount }}">
+            <td role="cell" class="complete-cell"><form method="post" action="/entries/{{ e.id }}/completion"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}">{% if selected_person %}<input type="hidden" name="person_filter" value="{{ selected_person }}">{% endif %}<input class="complete-toggle" type="checkbox" name="completed" value="true" aria-label="Mark {{ e.description }} completed for {{ selected_month }}" {% if e.completed %}checked{% endif %} data-autosubmit></form></td>
+            <td role="cell" class="description-cell">{% if e.recurs_in_selected_month %}<span class="recurring" role="img" title="Repeats monthly" aria-label="Repeats monthly">↻<span class="recurring-label"> Monthly</span></span> {% endif %}<strong>{{ e.description }}</strong><small class="mobile-meta">{{ e.categories.name }} · {{ e.people.name }}</small></td><td role="cell" class="category-cell"><span class="category">{{ e.categories.name }}</span></td><td role="cell" class="person-cell"><span class="avatar">{{ e.people.name[0]|upper }}</span>{{ e.people.name }}</td><td role="cell" class="date-cell"><time datetime="{{ e.entry_date }}">{{ e.entry_date }}</time></td>
+            <td role="cell" class="type-column"><span class="pill {{ e.entry_type }}">{{ e.entry_type }}</span></td>
+            <td role="cell" class="right amount {{ e.entry_type }}">{{ '+' if e.entry_type == 'income' else '-' }}${{ '{:,.2f}'.format(e.amount|float) }}</td>
+            <td role="cell" class="actions"><div class="action-buttons"><button class="icon edit" aria-label="Edit {{ e.description }}" data-entry='{{ e|tojson }}' title="{{ 'Edit this month only' if e.recurring_monthly else 'Edit' }}">✎</button><form method="post" action="/entries/{{ e.id }}/delete" hidden data-confirm-title="{{ 'Stop recurring entry' if e.recurring_monthly else 'Delete entry' }}" data-delete-entry data-confirm="{{ 'Delete this recurring entry from ' ~ selected_month ~ ' onward? Previous months will be kept.' if e.recurring_monthly else 'Delete this entry?' }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}">{% if selected_person %}<input type="hidden" name="person_filter" value="{{ selected_person }}">{% endif %}</form></div></td>
           </tr>{% endfor %}
         </tbody></table></div>
         {% else %}<div class="empty small"><span>◎</span><h3>No entries this month</h3><p>Add income or an expense to see your projection.</p></div>{% endif %}
@@ -72,7 +70,7 @@
     <form method="post" action="/entries" id="entryForm" data-month-end="{{ selected_month_end }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <button type="button" class="close" aria-label="Close dialog">×</button><p class="eyebrow">MONTHLY ACTIVITY</p><h2 id="entryTitle">Add entry</h2>
-      <p id="entryMonthNote" class="entry-month-note" hidden>Changes apply only to {{ selected_month }}. Earlier and later months keep their existing values. To stop this entry from this month onward, use Delete in the list.</p>
+      <p id="entryMonthNote" class="entry-month-note" hidden>Changes apply only to {{ selected_month_label }}. Earlier and later months keep their existing values. Delete stops this entry from this month onward and keeps all earlier months.</p>
       <input type="hidden" name="household_id" value="{{ active.id }}"><input type="hidden" name="month" value="{{ selected_month }}">
       {% if selected_person %}<input type="hidden" name="person_filter" value="{{ selected_person }}">{% endif %}
       <div class="type-toggle" role="group" aria-label="Entry type"><label><input type="radio" name="entry_type" value="expense" checked><span>Expense</span></label><label><input type="radio" name="entry_type" value="income"><span>Income</span></label></div>
@@ -82,6 +80,7 @@
       <label>Person<select name="person_id" required>{% for p in people %}<option value="{{ p.id }}" {% if p.id == selected_person %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select></label>
       <label id="entryRepeat" class="check-row"><input name="recurring_monthly" type="checkbox" value="true"><span><strong>Repeat monthly</strong><small>Include this entry in every following month</small></span></label>
       <button type="submit" id="entrySubmit">Add entry</button>
+      <button type="button" id="entryDelete" class="danger-button dialog-delete" hidden>Delete entry</button>
     </form>
   </dialog>
   {% endif %}

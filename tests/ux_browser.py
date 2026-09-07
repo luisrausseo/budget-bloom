@@ -83,19 +83,35 @@ async def main():
         page = await context.new_page()
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        for width in (360, 390, 650, 768, 1280):
+        for width in (320, 360, 390, 650, 768, 1280):
             await page.set_viewport_size(dict(width=width, height=900))
             await page.goto("http://localhost/?month=2026-09&person=1")
             await expect(page.locator(".completed-disclosure")).to_contain_text("Completed (1)")
+            await expect(page.locator('.controls .household-name')).to_have_count(0)
+            await expect(page.locator('.controls [data-open="personDialog"]')).to_have_count(0)
+            await expect(page.locator('.actions form button')).to_have_count(0)
             assert await page.evaluate("document.documentElement.scrollWidth <= innerWidth"), f"Overflow at {width}"
             if width <= 650:
                 await expect(page.locator(".mobile-meta").first).to_be_visible()
                 await expect(page.locator("td.type-column").first).to_be_hidden()
+                await expect(page.locator('[data-delete-entry] button').first).to_be_hidden()
+                await expect(page.locator('.recurring-label').first).to_be_hidden()
+                assert await page.locator('.mobile-meta time').count() == 0
+                boxes = [await page.locator('tr[data-entry-id="1"] ' + cell).bounding_box()
+                         for cell in ('.complete-cell', '.description-cell', '.amount', '.actions')]
+                assert all(a['x'] + a['width'] <= b['x'] + 1 for a, b in zip(boxes, boxes[1:])), boxes
+                assert max(box['y'] + box['height']/2 for box in boxes) - min(box['y'] + box['height']/2 for box in boxes) < 2
             for dark in (False, True):
                 await page.evaluate("dark => document.documentElement.dataset.theme = dark ? 'dark' : 'light'", dark)
+                await page.wait_for_timeout(250)  # Allow the theme transition to finish before capture.
                 if width in (390, 1280):
                     await page.screenshot(path=f"/tmp/budget-ux-{width}-{'dark' if dark else 'light'}.png", full_page=True)
         await page.set_viewport_size(dict(width=390, height=900))
+        await page.locator('.account-dropdown summary').click()
+        await page.locator('.account-panel [data-open="personDialog"]').click()
+        await expect(page.locator('#personDialog')).to_be_visible()
+        await page.locator('#personDialog .close').click()
+        await page.locator('.account-dropdown summary').click()
         await page.locator(".completed-disclosure").click()
         await expect(page.locator('tr[data-entry-id="2"]')).to_be_hidden()
         await page.locator('tr[data-entry-id="1"] .complete-toggle').check()
@@ -104,14 +120,16 @@ async def main():
         await page.locator(".completed-disclosure").click()
         await page.locator('tr[data-entry-id="1"] .complete-toggle').uncheck()
         await expect(page.locator('tr[data-entry-id="1"]')).not_to_have_class("completed")
+        await expect(page.locator('body > .feedback')).to_be_visible()
+        await expect(page.locator('body > .feedback')).to_have_count(0, timeout=5000)
         # Explicit confirmation preserves recurrence scope; cancel does not POST.
         before = state["posts"]
-        await page.locator('tr[data-entry-id="1"] [data-delete-entry] button').click()
+        await page.locator('tr[data-entry-id="1"] .edit').click()
+        await page.locator('#entryDelete').click()
         await expect(page.get_by_role("dialog", name="Stop recurring entry")).to_be_visible()
         await page.get_by_role("button", name="Cancel", exact=True).click()
         assert state["posts"] == before
         # Recurring edit retains values and permits retry after an expired session.
-        await page.locator('tr[data-entry-id="1"] .edit').click()
         await expect(page.get_by_role("dialog", name="Edit this month")).to_be_visible()
         await page.locator('#entryForm [name="description"]').fill("Changed only this month")
         state.update(fail=True, delay=.3)
@@ -120,6 +138,25 @@ async def main():
         await expect(page.locator("#entryForm .feedback")).to_contain_text("session has expired")
         await expect(page.locator('#entryForm [name="description"]')).to_have_value("Changed only this month")
         await expect(page.locator("#entrySubmit")).to_be_enabled()
+        await page.wait_for_timeout(3700)
+        await expect(page.locator('#entryForm .feedback')).to_be_visible()
+        await page.get_by_role('button', name='Refresh session', exact=True).click()
+        await expect(page.locator('#entryForm .feedback')).to_contain_text('Session refreshed')
+        # Delete failures stay inside the popup; a successful retry closes it.
+        await page.locator('#entryDelete').click()
+        await page.get_by_role('button', name='Stop from this month', exact=True).click()
+        await expect(page.locator('#entryForm .feedback')).to_contain_text('session has expired')
+        await expect(page.locator('#entryDialog')).to_be_visible()
+        await expect(page.locator('#entryDelete')).to_be_enabled()
+        state.update(fail=False, delay=0)
+        # Deletion must not require the edited fields to pass save validation.
+        await page.locator('#entryForm [name="description"]').fill('')
+        await page.locator('#entryDelete').click()
+        await page.get_by_role('button', name='Stop from this month', exact=True).click()
+        await expect(page.locator('tr[data-entry-id="1"]')).to_have_count(0)
+        await expect(page.locator('#entryDialog')).to_be_hidden()
+        await page.get_by_role('button', name='＋ Add entry', exact=True).click()
+        await expect(page.locator('#entryDelete')).to_be_hidden()
         await page.locator('#entryDialog .close').click()
         state.update(fail=False, delay=0)
         # Navigation keeps the budget filter; logo still points to the reset route.
@@ -127,6 +164,13 @@ async def main():
         await expect(page.locator("[data-budget-tab]")).to_have_attribute("href", "/?month=2026-09&person=1")
         await expect(page.locator(".brand-home")).to_have_attribute("href", "/")
         await expect(page.locator(".mobile-meta")).to_contain_text("sampleuser")
+        await expect(page.locator('.actions form button')).to_have_count(0)
+        await page.locator('.grocery-edit').click()
+        await page.locator('#groceryDelete').click()
+        await expect(page.get_by_role('dialog', name='Confirm action')).to_be_visible()
+        await page.get_by_role('button', name='Cancel', exact=True).click()
+        await expect(page.locator('#groceryEditDialog')).to_be_visible()
+        await page.locator('#groceryEditDialog .close').click()
         assert await page.locator("#item_name").evaluate("input => input !== document.activeElement")
         await page.screenshot(path="/tmp/budget-ux-groceries.png", full_page=True)
         # Server-rendered invitation steps bootstrap controls again without script errors.

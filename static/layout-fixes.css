@@ -35,7 +35,7 @@ html[data-theme="dark"] .stats i.income { background: #29432d; color: #a9db97; }
 html[data-theme="dark"] .stats i.expense { background: #4a2d2a; color: #f1aaa3; }
 html[data-theme="dark"] .auth-error { background: #4a2d2a; color: #f1aaa3; }
 html[data-theme="dark"] .security-message { background: #29432d; color: #a9db97; }
-html[data-theme="dark"] button:not(.ghost):not(.icon):not(.close):not(.theme-toggle):not(.danger-link):not(.danger-button) { background: #397d69; }
+html[data-theme="dark"] button:where(:not(.ghost):not(.icon):not(.close):not(.theme-toggle):not(.danger-link):not(.danger-button)) { background: #397d69; }
 
 .auth-page {
   min-height: 100vh;
@@ -325,7 +325,7 @@ html[data-theme="dark"] .grocery-add-form button { background: var(--lime); colo
 header .account-panel form, header .account-panel button, header .account-panel a { width: 100%; }
 header .account-panel a, header .account-panel form { margin-top: 6px; }
 .controls { flex-wrap: wrap; }
-.controls > form { flex: 1; grid-template-columns: minmax(110px, 1fr) 270px minmax(140px, 1fr); }
+.controls > form { flex: 1; grid-template-columns: 270px minmax(140px, 1fr); }
 .month-display { position: relative; flex: 1; min-width: 0; text-align: center; padding: 10px 2px; font-size: 15px; font-weight: 600; }
 .month-display input[type="month"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .month-display:focus-within { outline: 3px solid var(--green); outline-offset: 2px; border-radius: 8px; }
@@ -336,6 +336,10 @@ header .account-panel a, header .account-panel form { margin-top: 6px; }
 .type-toggle input:focus-visible + span { outline: 3px solid var(--green); outline-offset: 2px; }
 .type-toggle span { min-height: 44px; }
 .mobile-meta { display: none; }
+.recurring { margin-left: 0; margin-right: 3px; }
+.date-cell { white-space: nowrap; }
+.dialog-delete { width: 100%; margin-top: 14px; background: #b83e36; color: #fff; }
+html[data-theme="dark"] .dialog-delete { background: #b83e36; color: #fff; }
 .completed-heading td { padding: 18px 0 8px; border: 0; }
 .completed-disclosure { background: transparent; color: var(--green); padding: 10px; font-size: 14px; text-align: left; }
 html[data-theme="dark"] button.completed-disclosure { background: transparent; }
@@ -343,6 +347,7 @@ html[data-theme="dark"] button.completed-disclosure { background: transparent; }
 .feedback > span { flex: 1; min-width: 120px; }
 .feedback button { flex: 0 0 44px; width: 44px; min-height: 44px; padding: 0; margin: 0; background: transparent; color: var(--ink); font-size: 20px; }
 .feedback a { color: var(--green); font-weight: 600; text-decoration: underline; }
+.feedback button.refresh-session { flex: 0 1 auto; width: auto; padding: 8px; font-size: 14px; }
 .feedback-error { border-color: var(--red); }
 body > .feedback { position: fixed; z-index: 20; bottom: max(16px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: min(580px, calc(100% - 28px)); box-shadow: 0 8px 32px #102b2526; }
 .grocery-add-form { flex-wrap: wrap; }
@@ -355,9 +360,11 @@ button.is-loading { opacity: .65; cursor: wait; }
 @media (max-width: 720px) {
   header { flex-direction: row; align-items: center; min-height: 90px; }
   header .account-menu { width: auto; }
+  .controls { display: grid; grid-template-columns: 1fr auto; }
+  .controls > form { grid-column: 1 / -1; }
   .controls > form { grid-template-columns: 1fr; }
-  .controls > .ghost { margin-left: 0; }
-  .controls .this-month { align-self: flex-start; }
+  .controls > .ghost { margin-left: 0; grid-column: 2; grid-row: 2; }
+  .controls .this-month { grid-column: 1; grid-row: 2; align-self: center; }
 }
 @media (max-width: 650px) {
   .activity-table, .activity-table tbody { display: block; width: 100%; }
@@ -374,5 +381,11 @@ button.is-loading { opacity: .65; cursor: wait; }
   .activity-table .completed-heading { display: block; border: 0; padding-bottom: 0; }
   .activity-table .completed-heading td { display: block; }
   .grocery-table .description-cell { grid-row: 1 / span 2; }
-  .recurring { margin-left: 0; margin-top: 4px; }
+  .budget-table tr { grid-template-columns: 32px minmax(0, 1fr) minmax(65px, max-content) 44px; gap: 8px; align-items: center; }
+  .budget-table .complete-cell, .budget-table .description-cell, .budget-table .amount, .budget-table .actions { grid-row: 1; }
+  .budget-table .amount { grid-column: 3; text-align: right; white-space: nowrap; }
+  .budget-table .actions { grid-column: 4; }
+  .budget-table .actions form { display: none; }
+  .budget-table .recurring-label { display: none; }
+  .budget-table .recurring { margin: 0; font-size: 14px; }
 }

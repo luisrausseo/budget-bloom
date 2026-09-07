@@ -8,10 +8,10 @@ const entry = {id:7, description:'April only', category_id:4, amount:75,
   recurring_monthly:true, entry_type:'expense'};
 const form = {dataset:{monthEnd:'2026-04-30'}, month:{value:'2026-04'},
   description:{}, category_id:{}, amount:{}, entry_date:{}, person_id:{}, recurring_monthly:{},
-  querySelector:()=>({}), reset:()=>{}};
+  querySelector:selector=>selector==='.feedback'?null:({}), reset:()=>{}};
 const dialog = {addEventListener:(name,fn)=>{handlers[name]=fn;},showModal:()=>{handlers.opened=true;}};
-const nodes = {entryForm:form, entryDialog:dialog, entryRepeat:{}, entryMonthNote:{}, entryTitle:{}, entrySubmit:{}};
-const button = {dataset:{entry:JSON.stringify(entry)},addEventListener:(_,fn)=>{handlers.edit=fn;}};
+const nodes = {entryForm:form, entryDialog:dialog, entryRepeat:{}, entryMonthNote:{}, entryTitle:{}, entrySubmit:{}, entryDelete:{addEventListener:()=>{}}};
+const button = {closest:()=>({querySelector:()=>({})}),dataset:{entry:JSON.stringify(entry)},addEventListener:(_,fn)=>{handlers.edit=fn;}};
 const document = {body:{dataset:{}}, querySelector:()=>null, getElementById:id=>nodes[id] || null,
   querySelectorAll:selector=>selector==='.edit'?[button]:[]};
 vm.runInNewContext(fs.readFileSync('static/app.js','utf8'),{document, window:{addEventListener:()=>{}}});
@@ -22,6 +22,7 @@ assert.equal(form.entry_date.max,'2026-04-30');
 assert.equal(form.recurring_monthly.disabled,true);
 assert.equal(nodes.entryMonthNote.hidden,false);
 assert.equal(nodes.entryRepeat.hidden,true);
+assert.equal(nodes.entryDelete.hidden,false);
 handlers.close();
 assert.equal(form.action,'/entries');
 assert.equal(form.entry_date.min,'');
@@ -29,4 +30,5 @@ assert.equal(form.entry_date.max,'');
 assert.equal(form.recurring_monthly.disabled,false);
 assert.equal(nodes.entryRepeat.hidden,false);
 assert.equal(nodes.entryMonthNote.hidden,true);
+assert.equal(nodes.entryDelete.hidden,true);
 console.log('Occurrence edit and add-form reset checks passed.');
