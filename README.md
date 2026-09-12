@@ -44,6 +44,18 @@ the app detects the platform environment and automatically uses
 `http://proxy.server:3128`. Set `OUTBOUND_HTTP_PROXY` only to override this
 behavior for another hosting environment.
 
+## Language preference
+
+Run `add_account_language.sql` in Supabase before deploying this version, then
+reload the app. Choose **Account → Language → English / Español → Apply**.
+The preference is stored on the account and applies across sessions and devices;
+existing and new accounts default to English. A non-sensitive cookie also keeps
+the sign-in screen in the last selected language on that browser. Account data
+always takes priority after signing in. User-entered names and content are not translated.
+
+Rollback: deploy the previous app code. The additional database column can safely
+remain; its optional removal is documented in the migration file.
+
 ## Local admin application
 
 Run the separate admin UI on loopback only:

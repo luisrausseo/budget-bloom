@@ -1,4 +1,5 @@
 (() => {
+  const t = text => window.budgetTranslate ? window.budgetTranslate(text) : text;
   const storageKey = 'budget-bloom-theme';
   let saved = null;
   try { saved = localStorage.getItem(storageKey); } catch (error) { /* Use device preference. */ }
@@ -8,8 +9,8 @@
     document.querySelectorAll('.theme-toggle').forEach(button => {
       const dark = theme === 'dark';
       button.textContent = dark ? '☀' : '☾';
-      button.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
-      button.title = dark ? 'Light mode' : 'Dark mode';
+      button.setAttribute('aria-label', dark ? t('Switch to light mode') : t('Switch to dark mode'));
+      button.title = dark ? t('Light mode') : t('Dark mode');
     });
   };
 

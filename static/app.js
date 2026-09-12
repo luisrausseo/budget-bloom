@@ -1,5 +1,8 @@
 // Shared progressive enhancement; sensitive form values stay in this page only.
 (() => {
+const messages = JSON.parse(document.getElementById('ui-translations')?.textContent || '{}');
+const t = text => Object.prototype.hasOwnProperty.call(messages, text) ? messages[text] : text;
+window.budgetTranslate = t;
 const storage = {
   get(key) { try { return sessionStorage.getItem(key); } catch { return null; } },
   set(key, value) { try { sessionStorage.setItem(key, value); } catch {} },
@@ -13,30 +16,30 @@ function notice(message, error = false, host = document.body, signIn = false) {
   box.replaceChildren();
   box.classList.toggle('feedback-error', error);
   box.setAttribute('role', error ? 'alert' : 'status');
-  const text = document.createElement('span'); text.textContent = message; box.append(text);
+  const text = document.createElement('span'); text.textContent = t(message); box.append(text);
   if (signIn) {
     const link = document.createElement('a'); link.href = '/login'; link.target = '_blank'; link.rel = 'noopener';
-    link.textContent = 'Sign in in a new tab'; box.append(link);
+    link.textContent = t('Sign in in a new tab'); box.append(link);
     if (document.body.dataset.household) {
       const refresh = document.createElement('button'); refresh.type = 'button'; refresh.className = 'refresh-session';
-      refresh.textContent = 'Refresh session';
+      refresh.textContent = t('Refresh session');
       refresh.addEventListener('click', async () => {
         refresh.disabled = true;
         try {
           const response = await fetch(location.href, {cache:'no-store'});
-          if (!response.ok) throw new Error('Could not refresh the session. Sign in first, then try again.');
+          if (!response.ok) throw new Error(t('Could not refresh the session. Sign in first, then try again.'));
           const page = new DOMParser().parseFromString(await response.text(), 'text/html');
           const csrf = page.querySelector('[name="csrf_token"]')?.value;
-          if (!csrf || page.body.dataset.household !== document.body.dataset.household) throw new Error('Sign in to this household first, then refresh the session again.');
+          if (!csrf || page.body.dataset.household !== document.body.dataset.household) throw new Error(t('Sign in to this household first, then refresh the session again.'));
           document.querySelectorAll('[name="csrf_token"]').forEach(input => { input.value = csrf; });
-          notice('Session refreshed. Your input is unchanged; you can save again.', false, host);
+          notice(t('Session refreshed. Your input is unchanged; you can save again.'), false, host);
         } catch (error) { text.textContent = error.message; refresh.disabled = false; }
       });
       box.append(refresh);
     }
   }
   const dismiss = document.createElement('button'); dismiss.type = 'button'; dismiss.textContent = '×';
-  dismiss.setAttribute('aria-label', 'Dismiss message'); dismiss.addEventListener('click', () => box.remove()); box.append(dismiss);
+  dismiss.setAttribute('aria-label', t('Dismiss message')); dismiss.addEventListener('click', () => box.remove()); box.append(dismiss);
 }
 function busy(form, active, button) {
   form.dataset.busy = active ? 'true' : ''; form.setAttribute('aria-busy', String(active));
@@ -44,7 +47,7 @@ function busy(form, active, button) {
     form._buttons = [...form.querySelectorAll('button')].filter(item => !item.disabled);
     form._buttons.forEach(item => { item.disabled = true; });
     if (button) {
-      button._html = button.innerHTML; button.textContent = form.action.endsWith('/login') ? 'Signing in…' : 'Saving…';
+      button._html = button.innerHTML; button.textContent = form.action.endsWith('/login') ? t('Signing in…') : t('Saving…');
       button.classList.add('is-loading');
     }
   } else {
@@ -56,11 +59,11 @@ async function readResponse(response) {
   const isJSON = (response.headers.get('content-type') || '').includes('application/json');
   const payload = isJSON ? await response.json() : await response.text();
   if (!response.ok) {
-    const error = new Error(response.status >= 500 ? 'The server could not finish the request. Your input is still here.' :
-      response.status === 401 ? 'Your session has expired. Sign in in a new tab, then return here.' :
-      response.status === 403 ? 'Your session or permissions may have changed. Sign in again before retrying.' :
-      response.status === 429 ? 'Too many attempts. Please wait a few minutes before trying again.' :
-      typeof payload.detail === 'string' ? payload.detail : 'Check your input and try again. Your changes have not been cleared.');
+    const error = new Error(response.status >= 500 ? t('The server could not finish the request. Your input is still here.') :
+      response.status === 401 ? t('Your session has expired. Sign in in a new tab, then return here.') :
+      response.status === 403 ? t('Your session or permissions may have changed. Sign in again before retrying.') :
+      response.status === 429 ? t('Too many attempts. Please wait a few minutes before trying again.') :
+      typeof payload.detail === 'string' ? t(payload.detail) : t('Check your input and try again. Your changes have not been cleared.'));
     error.signIn = response.status === 401 || response.status === 403;
     if (!isJSON) {
       const page = new DOMParser().parseFromString(payload, 'text/html');
@@ -72,7 +75,7 @@ async function readResponse(response) {
   return {payload, isJSON};
 }
 function failure(error, host) {
-  notice(error instanceof TypeError ? 'Connection interrupted. Your input is still here. The change may have saved—check the list in another tab before submitting again.' : error.message, true, host, error.signIn);
+  notice(error instanceof TypeError ? t('Connection interrupted. Your input is still here. The change may have saved—check the list in another tab before submitting again.') : error.message, true, host, error.signIn);
   if (error.csrf) host.querySelectorAll('[name="csrf_token"]').forEach(input => { input.value = error.csrf; });
 }
 function confirmAction(form) {
@@ -80,12 +83,12 @@ function confirmAction(form) {
     const modal = document.createElement('dialog'); modal.className = 'confirm-dialog';
     modal.setAttribute('aria-labelledby', 'confirm-title'); modal.setAttribute('aria-describedby', 'confirm-description');
     const content = document.createElement('div'); content.className = 'confirm-content';
-    const title = document.createElement('h2'); title.id = 'confirm-title'; title.textContent = form.dataset.confirmTitle || 'Confirm action';
-    const description = document.createElement('p'); description.id = 'confirm-description'; description.textContent = form.dataset.confirm;
+    const title = document.createElement('h2'); title.id = 'confirm-title'; title.textContent = t(form.dataset.confirmTitle) || t('Confirm action');
+    const description = document.createElement('p'); description.id = 'confirm-description'; description.textContent = t(form.dataset.confirm);
     const controls = document.createElement('div'); controls.className = 'confirm-controls';
-    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'ghost'; cancel.textContent = 'Cancel';
+    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'ghost'; cancel.textContent = t('Cancel');
     const accept = document.createElement('button'); accept.type = 'button'; accept.className = 'danger-button';
-    accept.textContent = form.dataset.confirmTitle === 'Stop recurring entry' ? 'Stop from this month' : 'Confirm';
+    accept.textContent = form.dataset.confirmTitle === 'Stop recurring entry' ? t('Stop from this month') : t('Confirm');
     cancel.addEventListener('click', () => modal.close()); accept.addEventListener('click', () => modal.close('confirmed'));
     modal.addEventListener('close', () => { const accepted = modal.returnValue === 'confirmed'; modal.remove(); resolve(accepted); }, {once:true});
     controls.append(cancel, accept); content.append(title, description, controls); modal.append(content);
@@ -132,7 +135,7 @@ document.querySelectorAll('[data-month-step]').forEach(button => button.addEvent
   button.form.requestSubmit();
 }));
 document.querySelectorAll('.controls form').forEach(form => form.addEventListener('submit', () => {
-  form.querySelectorAll('[data-month-step]').forEach(button => { button.disabled = true; }); notice('Loading month…');
+  form.querySelectorAll('[data-month-step]').forEach(button => { button.disabled = true; }); notice(t('Loading month…'));
 }));
 function groupCompleted(table) {
   const body = table.tBodies[0]; const rows = [...body.rows].filter(row => row.matches('[data-entry-id], [data-grocery-id]'));
@@ -152,7 +155,7 @@ function groupCompleted(table) {
     cell.append(button); heading.append(cell); body.append(heading);
   }
   const button = heading.querySelector('button'); const count = rows.filter(row => row.classList.contains('completed')).length;
-  button.textContent = (button.getAttribute('aria-expanded') === 'true' ? '▾' : '▸') + ' Completed (' + count + ')'; heading.hidden = !count;
+  button.textContent = (button.getAttribute('aria-expanded') === 'true' ? '▾' : '▸') + ' ' + t('Completed') + ' (' + count + ')'; heading.hidden = !count;
   rows.sort((a, b) => (b.dataset.entryDate || b.dataset.groceryDate).localeCompare(a.dataset.entryDate || a.dataset.groceryDate) ||
     Number(b.dataset.entryId || b.dataset.groceryId) - Number(a.dataset.entryId || a.dataset.groceryId));
   rows.filter(row => !row.classList.contains('completed')).forEach(row => { row.hidden = false; body.append(row); });
@@ -160,7 +163,7 @@ function groupCompleted(table) {
   rows.filter(row => row.classList.contains('completed')).forEach(row => { row.hidden = button.getAttribute('aria-expanded') !== 'true'; body.append(row); });
   let empty = table.parentElement.querySelector('.list-empty');
   if (!empty) { empty = document.createElement('p'); empty.className = 'list-empty'; table.parentElement.prepend(empty); }
-  empty.textContent = rows.length ? 'All caught up. Your completed items are below.' : 'Nothing left in this list. Add an item to get started.';
+  empty.textContent = rows.length ? t('All caught up. Your completed items are below.') : t('Nothing left in this list. Add an item to get started.');
   empty.hidden = rows.some(row => !row.classList.contains('completed'));
 }
 document.querySelectorAll('.activity-table').forEach(groupCompleted);
@@ -169,17 +172,17 @@ document.querySelectorAll('.complete-toggle').forEach(control => control.addEven
   data.set('completed', String(control.checked)); data.set('ajax', 'true'); control.disabled = true;
   try {
     const {payload} = await readResponse(await fetch(control.form.action, {method:'POST', body:data, headers:{'X-Requested-With':'fetch'}}));
-    if (Boolean(payload.completed) !== control.checked) throw new Error('Completion was not confirmed. Check the list before trying again.');
+    if (Boolean(payload.completed) !== control.checked) throw new Error(t('Completion was not confirmed. Check the list before trying again.'));
     const row = control.closest('tr'); row.classList.toggle('completed', control.checked); const table = row.closest('table'); groupCompleted(table);
     if (row.hidden) table.querySelector('.completed-disclosure').focus();
-    notice(control.checked ? 'Marked completed. Find it in the Completed section.' : 'Moved back to pending.');
+    notice(control.checked ? t('Marked completed. Find it in the Completed section.') : t('Moved back to pending.'));
   } catch (error) { control.checked = original; failure(error, document.body); }
   finally { control.disabled = false; }
 }));
 function refreshDashboardTotals() {
   let income = 0, expenses = 0;
   document.querySelectorAll('tr[data-entry-type]').forEach(row => {
-    if (row.dataset.entryType === 'income') income += Number(row.dataset.amount); else expenses += Number(row.dataset.amount);
+    if (row.dataset.entryType === t('income')) income += Number(row.dataset.amount); else expenses += Number(row.dataset.amount);
   });
   const money = value => '$' + value.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
   const balance = income - expenses;
@@ -205,9 +208,9 @@ document.querySelectorAll('form[method="post"]').forEach(form => form.addEventLi
     if (isJSON && payload.deleted) {
       const table = form.closest('table'); form.closest('tr').remove(); refreshDashboardTotals(); groupCompleted(table);
       editor?.close();
-      table.closest('.ledger').querySelector('.section-title button')?.focus(); notice('Entry removed. Earlier months of recurring entries are unchanged.');
+      table.closest('.ledger').querySelector('.section-title button')?.focus(); notice(t('Entry removed. Earlier months of recurring entries are unchanged.'));
     } else if (isJSON && payload.redirect) {
-      const url = new URL(payload.redirect, location.origin); if (url.origin !== location.origin) throw new Error('Unexpected destination. Please reload.');
+      const url = new URL(payload.redirect, location.origin); if (url.origin !== location.origin) throw new Error(t('Unexpected destination. Please reload.'));
       if (form.action.endsWith('/logout')) storage.remove(contextKey);
       if (!url.searchParams.has('message')) storage.set('budget-flash', form.action.endsWith('/login') ? 'Signed in successfully.' :
         form.action.endsWith('/logout') ? 'Signed out.' : url.pathname === '/login' ? 'Done. Please sign in to continue.' : 'Changes saved.');
@@ -219,11 +222,11 @@ document.querySelectorAll('form[method="post"]').forEach(form => form.addEventLi
         if (csrf) form.querySelectorAll('[name="csrf_token"]').forEach(input => { input.value = csrf; });
         notice(error.textContent, true, host);
       } else {
-        if (!page.querySelector('main')) throw new Error('Unexpected response. Your input has been kept.');
+        if (!page.querySelector('main')) throw new Error(t('Unexpected response. Your input has been kept.'));
         // Trusted same-origin server-rendered registration/invitation step.
         navigating = true; document.open(); document.write(payload); document.close();
       }
-    } else throw new Error('The save was not confirmed. Check the list before trying again.');
+    } else throw new Error(t('The save was not confirmed. Check the list before trying again.'));
   } catch (error) { failure(error, host); }
   finally {
     if (!navigating) busy(form, false, submitter);
@@ -234,10 +237,10 @@ document.querySelectorAll('[data-select]').forEach(input => input.addEventListen
 document.querySelectorAll('[data-copy-invitation]').forEach(button => button.addEventListener('click', async () => {
   const inputs = button.closest('main').querySelectorAll('[data-select]');
   try {
-    await navigator.clipboard.writeText('Join my Budget Bloom household: ' + inputs[0].value + '\nInvitation code: ' + inputs[1].value);
-    notice('Invitation copied. Share it privately with the person joining your household.', false, button.closest('main'));
+    await navigator.clipboard.writeText(t('Join my Budget Bloom household: ') + inputs[0].value + '\n' + t('Invitation code: ') + inputs[1].value);
+    notice(t('Invitation copied. Share it privately with the person joining your household.'), false, button.closest('main'));
   } catch {
-    inputs[1].focus(); inputs[1].select(); notice('Copying is unavailable. Select and copy the registration link and code above.', true, button.closest('main'));
+    inputs[1].focus(); inputs[1].select(); notice(t('Copying is unavailable. Select and copy the registration link and code above.'), true, button.closest('main'));
   }
 }));
 const flash = storage.get('budget-flash'); if (flash) { storage.remove('budget-flash'); notice(flash); }
@@ -269,8 +272,8 @@ document.querySelectorAll('.edit').forEach(button => button.addEventListener('cl
   document.getElementById('entryRepeat').hidden = entry.recurring_monthly;
   document.getElementById('entryMonthNote').hidden = !entry.recurring_monthly;
   form.querySelector(`[name="entry_type"][value="${entry.entry_type}"]`).checked = true;
-  document.getElementById('entryTitle').textContent = entry.recurring_monthly ? 'Edit this month' : 'Edit entry';
-  document.getElementById('entrySubmit').textContent = 'Save changes';
+  document.getElementById('entryTitle').textContent = entry.recurring_monthly ? t('Edit this month') : t('Edit entry');
+  document.getElementById('entrySubmit').textContent = t('Save changes');
   dialog.showModal();
 }));
 dialog?.addEventListener('close', () => {
@@ -282,8 +285,8 @@ dialog?.addEventListener('close', () => {
   form.recurring_monthly.disabled = false;
   document.getElementById('entryRepeat').hidden = false;
   document.getElementById('entryMonthNote').hidden = true;
-  document.getElementById('entryTitle').textContent = 'Add entry';
-  document.getElementById('entrySubmit').textContent = 'Add entry';
+  document.getElementById('entryTitle').textContent = t('Add entry');
+  document.getElementById('entrySubmit').textContent = t('Add entry');
 });
 
 const groceryEditDialog = document.getElementById('groceryEditDialog');

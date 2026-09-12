@@ -12,6 +12,10 @@ from playwright.async_api import async_playwright, expect
 
 ROOT = Path(__file__).resolve().parents[1]
 env = Environment(loader=FileSystemLoader(ROOT / "templates"), autoescape=select_autoescape())
+import sys
+sys.path.insert(0, str(ROOT))
+from translations import configure
+configure(env)
 account = dict(id=1, household_id=1, username="sampleuser", role="owner")
 person = dict(id=1, name="Alex Example")
 category = dict(id=1, name="💡 Electricity")
@@ -61,7 +65,10 @@ async def main():
             elif request.method == "POST":
                 state["posts"] += 1
                 await asyncio.sleep(state["delay"])
-                if state["fail"]:
+                if url.path == '/account/language':
+                    account['language'] = 'es' if 'name="language"\r\n\r\nes' in (request.post_data or '') else 'en'
+                    await route.fulfill(json={'redirect':'/?month=2026-09&person=1'})
+                elif state["fail"]:
                     await route.fulfill(status=401, json={"detail": "Sign in required"})
                 elif url.path.endswith("/completion"):
                     # Browser serialization sends a multipart body.
@@ -87,6 +94,8 @@ async def main():
             await page.set_viewport_size(dict(width=width, height=900))
             await page.goto("http://localhost/?month=2026-09&person=1")
             await expect(page.locator(".completed-disclosure")).to_contain_text("Completed (1)")
+            await expect(page.locator('.recurring').first).to_have_text('↻')
+            await expect(page.locator('.recurring').first).to_have_attribute('aria-label', 'Repeats monthly')
             await expect(page.locator('.controls .household-name')).to_have_count(0)
             await expect(page.locator('.controls [data-open="personDialog"]')).to_have_count(0)
             await expect(page.locator('.actions form button')).to_have_count(0)
@@ -95,7 +104,6 @@ async def main():
                 await expect(page.locator(".mobile-meta").first).to_be_visible()
                 await expect(page.locator("td.type-column").first).to_be_hidden()
                 await expect(page.locator('[data-delete-entry] button').first).to_be_hidden()
-                await expect(page.locator('.recurring-label').first).to_be_hidden()
                 assert await page.locator('.mobile-meta time').count() == 0
                 boxes = [await page.locator('tr[data-entry-id="1"] ' + cell).bounding_box()
                          for cell in ('.complete-cell', '.description-cell', '.amount', '.actions')]
@@ -107,6 +115,24 @@ async def main():
                 if width in (390, 1280):
                     await page.screenshot(path=f"/tmp/budget-ux-{width}-{'dark' if dark else 'light'}.png", full_page=True)
         await page.set_viewport_size(dict(width=390, height=900))
+        await page.locator('.account-dropdown summary').click()
+        await page.locator('#account-language').select_option('es')
+        await page.locator('.language-form button').click()
+        await expect(page.locator('html')).to_have_attribute('lang', 'es')
+        await expect(page.locator('[data-budget-tab]')).to_have_text('Presupuesto mensual')
+        await expect(page.locator('.completed-disclosure')).to_contain_text('Completados (1)')
+        await page.locator('tr[data-entry-id="1"] .edit').click()
+        await expect(page.locator('#entryTitle')).to_have_text('Editar este mes')
+        await expect(page.locator('#entryDelete')).to_have_text('Eliminar movimiento')
+        await page.locator('#entryDialog .close').click()
+        await page.reload()
+        await expect(page.locator('html')).to_have_attribute('lang', 'es')
+        assert await page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+        await page.locator('.account-dropdown summary').click()
+        await page.screenshot(path='/tmp/budget-language-es.png', full_page=True)
+        await page.locator('#account-language').select_option('en')
+        await page.locator('.language-form button').click()
+        await expect(page.locator('html')).to_have_attribute('lang', 'en')
         await page.locator('.account-dropdown summary').click()
         await page.locator('.account-panel [data-open="personDialog"]').click()
         await expect(page.locator('#personDialog')).to_be_visible()

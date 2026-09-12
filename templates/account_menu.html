@@ -1,19 +1,29 @@
 <div class="account-menu">
-  <button class="theme-toggle" type="button" aria-label="Switch color theme">☾</button>
+  <button class="theme-toggle" type="button" aria-label="{{ t("Switch color theme") }}">☾</button>
   <details class="account-dropdown">
-    <summary>Account <span aria-hidden="true">▾</span></summary>
+    <summary>{{ t("Account") }} <span aria-hidden="true">▾</span></summary>
     <div class="account-panel">
       <p class="account-name">{{ account.username }}</p>
+      <form method="post" action="/account/language" class="language-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="return_to" value="{{ request.url.path ~ ('?' ~ request.url.query if request.url.query else '') if request else '/' }}">
+        <label for="account-language">{{ t('Language') }}</label>
+        <select id="account-language" name="language">
+          <option value="en" lang="en" {% if ui_language() == 'en' %}selected{% endif %}>English</option>
+          <option value="es" lang="es" {% if ui_language() == 'es' %}selected{% endif %}>Español</option>
+        </select>
+        <button type="submit" class="ghost">{{ t('Apply') }}</button>
+      </form>
       {% if active %}
-      <button class="ghost" type="button" data-open="personDialog">Add person</button>
+      <button class="ghost" type="button" data-open="personDialog">{{ t("Add person") }}</button>
       {% else %}
-      <a class="header-link" href="/?add_person=1" data-person-link>Add person</a>
+      <a class="header-link" href="/?add_person=1" data-person-link>{{ t("Add person") }}</a>
       {% endif %}
-      <a class="header-link" href="/security">Security &amp; access</a>
+      <a class="header-link" href="/security">{{ t("Security & access") }}</a>
       {% if account.role == 'owner' %}
-      <form method="post" action="/invitations"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ghost" type="submit">Invite user</button></form>
+      <form method="post" action="/invitations"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ghost" type="submit">{{ t("Invite user") }}</button></form>
       {% endif %}
-      <form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ghost" type="submit">Sign out</button></form>
+      <form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ghost" type="submit">{{ t("Sign out") }}</button></form>
     </div>
   </details>
 </div>

@@ -10,7 +10,7 @@ import time
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from translations import configure, display_date
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
@@ -47,6 +48,7 @@ templates = Environment(
     loader=FileSystemLoader(BASE_DIR / "templates"),
     autoescape=select_autoescape(["html", "xml"]),
 )
+configure(templates)
 templates.globals["static_version"] = str(int(max(
     (BASE_DIR / "static" / "app.js").stat().st_mtime,
     (BASE_DIR / "static" / "theme.js").stat().st_mtime,
@@ -236,7 +238,7 @@ async def current_account(request: Request) -> dict | None:
         return cached[1]
     sessions = await db.request(
         "GET", "account_sessions", params={
-            "select": "account_id,expires_at,accounts(id,username,household_id,role,disabled_at)",
+            "select": "account_id,expires_at,accounts(id,username,household_id,role,disabled_at,language)",
             "token_hash": f"eq.{token_hash}",
             "expires_at": f"gt.{datetime.now(UTC).isoformat()}",
             "limit": "1",
@@ -267,7 +269,7 @@ async def require_household(request: Request, household_id: int) -> dict:
 
 def login_page(request: Request, error: str | None = None) -> HTMLResponse:
     csrf_token = secrets.token_urlsafe(32)
-    response = HTMLResponse(templates.get_template("login.html").render(error=error, csrf_token=csrf_token))
+    response = HTMLResponse(templates.get_template("login.html").render(request=request, error=error, csrf_token=csrf_token))
     set_anonymous_csrf(response, csrf_token)
     return response
 
@@ -425,10 +427,11 @@ async def grocery_list(request: Request):
         },
     )
     for item in items:
-        item["display_date"] = datetime.fromisoformat(
+        item_date = datetime.fromisoformat(
             item["created_at"].replace("Z", "+00:00")
-        ).astimezone(APP_TIMEZONE).strftime("%b %d, %Y").replace(" 0", " ")
-    return HTMLResponse(templates.get_template("groceries.html").render(
+        ).astimezone(APP_TIMEZONE)
+        item["display_date"] = display_date(item_date, account.get('language', 'en'))
+    return HTMLResponse(templates.get_template("groceries.html").render(request=request,
         household=household_rows[0], items=items, account=account,
         csrf_token=session_csrf_token(request),
     ))
@@ -443,7 +446,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
     if re.fullmatch(r"[a-z0-9._-]{3,50}", username):
         rows = await db.request(
             "GET", "accounts", params={
-                "select": "id,username,password_hash,household_id,role,disabled_at",
+                "select": "id,username,password_hash,household_id,role,disabled_at,language",
                 "username": f"eq.{username}", "limit": "1",
             }
         )
@@ -459,9 +462,11 @@ async def login(request: Request, username: str = Form(...), password: str = For
         "expires_at": expires.isoformat(),
     })
     session_cache[session_token_hash(token)] = (time.monotonic() + SESSION_CACHE_SECONDS, {
-        key: rows[0][key] for key in ("id", "username", "household_id", "role", "disabled_at")
+        key: rows[0][key] for key in ("id", "username", "household_id", "role", "disabled_at", "language")
     })
     response = RedirectResponse("/", status_code=303)
+    response.set_cookie('budget_bloom_language', rows[0].get('language', 'en'),
+        max_age=365 * 86400, secure=COOKIE_SECURE, httponly=True, samesite='lax')
     response.set_cookie(
         SESSION_COOKIE, token, max_age=SESSION_DAYS * 86400, httponly=True,
         samesite="lax", secure=COOKIE_SECURE, path="/",
@@ -475,7 +480,7 @@ async def register_form(request: Request):
     if await current_account(request):
         return RedirectResponse("/", status_code=303)
     csrf_token = secrets.token_urlsafe(32)
-    response = HTMLResponse(templates.get_template("register.html").render(
+    response = HTMLResponse(templates.get_template("register.html").render(request=request,
         code="", invitation=None, error=None, csrf_token=csrf_token,
     ))
     set_anonymous_csrf(response, csrf_token)
@@ -488,7 +493,7 @@ async def check_registration_code(request: Request, code: str = Form(...), csrf_
     await enforce_rate_limit(request, "invitation", "code", limit=12)
     invitation = await valid_invitation(code)
     next_csrf = secrets.token_urlsafe(32)
-    response = HTMLResponse(templates.get_template("register.html").render(
+    response = HTMLResponse(templates.get_template("register.html").render(request=request,
         code=code if invitation else "", invitation=invitation,
         error=None if invitation else "That invitation code is invalid, expired, or already used",
         csrf_token=next_csrf,
@@ -508,7 +513,7 @@ async def register(
     if not re.fullmatch(r"[a-z0-9._-]{3,50}", username) or not 12 <= len(password) <= 128:
         invitation = await valid_invitation(invitation_token)
         next_csrf = secrets.token_urlsafe(32)
-        response = HTMLResponse(templates.get_template("register.html").render(
+        response = HTMLResponse(templates.get_template("register.html").render(request=request,
             code=invitation_token, invitation=invitation,
             error="Use a 3–50 character username (letters, numbers, . _ -) and a 12–128 character password",
             csrf_token=next_csrf,
@@ -523,7 +528,7 @@ async def register(
     except HTTPException:
         invitation = await valid_invitation(invitation_token)
         next_csrf = secrets.token_urlsafe(32)
-        response = HTMLResponse(templates.get_template("register.html").render(
+        response = HTMLResponse(templates.get_template("register.html").render(request=request,
             code=invitation_token, invitation=invitation,
             error="That code is invalid or used, or the username is unavailable",
             csrf_token=next_csrf,
@@ -552,9 +557,11 @@ async def create_invitation(request: Request, csrf_token: str = Form(...)):
     })
     invite_url = f"{str(request.base_url).rstrip('/')}/register"
     await audit_event(request, "invitation_created", account)
-    return HTMLResponse(templates.get_template("invitation.html").render(
-        token=token, invite_url=invite_url, expires=expires.strftime("%B %d, %Y at %H:%M UTC"),
-        signed_in=True,
+    return HTMLResponse(templates.get_template("invitation.html").render(request=request,
+        token=token, invite_url=invite_url,
+        expires=(display_date(expires, 'es') + expires.strftime(' %H:%M UTC')
+                 if account.get('language') == 'es' else expires.strftime("%B %d, %Y at %H:%M UTC")),
+        signed_in=True, account=account,
     ))
 
 
@@ -571,6 +578,33 @@ async def logout(request: Request, csrf_token: str = Form(...)):
     response.delete_cookie(SESSION_COOKIE)
     if account:
         await audit_event(request, "logout", account)
+    return response
+
+
+@app.post("/account/language")
+async def set_language(request: Request, language: str = Form(...),
+                       csrf_token: str = Form(...), return_to: str = Form('/')):
+    require_csrf(request, csrf_token)
+    account = await current_account(request)
+    if not account:
+        raise HTTPException(401, 'Sign in required')
+    if language not in {'en', 'es'}:
+        raise HTTPException(400, 'Unsupported language')
+    # Only internal application pages are valid destinations, never arbitrary URLs.
+    try:
+        target = urlsplit(return_to)
+        safe = (not target.scheme and not target.netloc
+                and target.path in {'/', '/groceries', '/security'}
+                and '\\' not in return_to and not any(ord(c) < 32 for c in return_to))
+    except ValueError:
+        safe = False
+    destination = return_to if safe else '/'
+    await db.request('PATCH', 'accounts', params={'id': f"eq.{account['id']}"},
+                     json={'language': language})
+    invalidate_account_cache(account['id'])
+    response = RedirectResponse(destination, status_code=303)
+    response.set_cookie('budget_bloom_language', language, max_age=365 * 86400,
+                        secure=COOKIE_SECURE, httponly=True, samesite='lax')
     return response
 
 
@@ -591,7 +625,7 @@ async def security_page(request: Request, message: str | None = None):
             "used_at": "is.null", "expires_at": f"gt.{datetime.now(UTC).isoformat()}", "order": "created_at.desc",
         },
     )
-    return HTMLResponse(templates.get_template("security.html").render(
+    return HTMLResponse(templates.get_template("security.html").render(request=request,
         account=account, members=members, invitations=invitations,
         csrf_token=session_csrf_token(request), message=message,
     ))

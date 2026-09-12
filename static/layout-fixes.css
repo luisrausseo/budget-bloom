@@ -322,6 +322,9 @@ html[data-theme="dark"] .grocery-add-form button { background: var(--lime); colo
 .account-dropdown summary:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
 .account-panel { position: absolute; z-index: 10; right: 0; top: calc(100% + 8px); width: 230px; max-width: calc(100vw - 28px); padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); box-shadow: 0 12px 36px #102b2520; }
 .account-panel .account-name { padding: 8px; overflow-wrap: anywhere; font-size: 14px; color: var(--muted); }
+.account-panel form.language-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.language-form label { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
+.language-form select { min-width: 0; width: 100%; }
 header .account-panel form, header .account-panel button, header .account-panel a { width: 100%; }
 header .account-panel a, header .account-panel form { margin-top: 6px; }
 .controls { flex-wrap: wrap; }
@@ -386,6 +389,5 @@ button.is-loading { opacity: .65; cursor: wait; }
   .budget-table .amount { grid-column: 3; text-align: right; white-space: nowrap; }
   .budget-table .actions { grid-column: 4; }
   .budget-table .actions form { display: none; }
-  .budget-table .recurring-label { display: none; }
   .budget-table .recurring { margin: 0; font-size: 14px; }
 }

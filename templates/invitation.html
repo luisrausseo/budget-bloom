@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Invitation created · Budget Bloom</title><script src="/static/theme.js?v={{ static_version }}"></script><link rel="stylesheet" href="/static/styles.css?v={{ static_version }}"><link rel="stylesheet" href="/static/layout-fixes.css?v={{ static_version }}"></head>
-<body class="auth-page"><button class="theme-toggle auth-theme-toggle" type="button" aria-label="Switch color theme">☾</button><main class="auth-card">
-  <p class="eyebrow">INVITATION CREATED</p><h1>Budget <em>Bloom</em></h1><h2>Share this link once</h2>
-  <p class="invite-note">This invitation expires {{ expires }} and can create one account.</p>
-  <label>Registration page<input value="{{ invite_url }}" readonly data-select></label>
-  <label>Code<input value="{{ token }}" readonly data-select></label>
-  <button type="button" data-copy-invitation>Copy invitation</button>
-  <p class="invite-note">Copies the registration link and the one-use code together.</p>
-  <p class="auth-switch"><a href="{{ '/' if signed_in else '/login' }}">Done</a></p>
-</main><script src="/static/app.js?v={{ static_version }}"></script></body></html>
+<html lang="{{ ui_language() }}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ t("Invitation created · Budget Bloom") }}</title><script src="/static/theme.js?v={{ static_version }}"></script><link rel="stylesheet" href="/static/styles.css?v={{ static_version }}"><link rel="stylesheet" href="/static/layout-fixes.css?v={{ static_version }}"></head>
+<body class="auth-page"><button class="theme-toggle auth-theme-toggle" type="button" aria-label="{{ t("Switch color theme") }}">☾</button><main class="auth-card">
+  <p class="eyebrow">{{ t("INVITATION CREATED") }}</p><h1>Budget <em>Bloom</em></h1><h2>{{ t("Share this link once") }}</h2>
+  <p class="invite-note">{{ t('This invitation expires {expires} and can create one account.', expires=expires) }}</p>
+  <label>{{ t("Registration page") }}<input value="{{ invite_url }}" readonly data-select></label>
+  <label>{{ t("Code") }}<input value="{{ token }}" readonly data-select></label>
+  <button type="button" data-copy-invitation>{{ t("Copy invitation") }}</button>
+  <p class="invite-note">{{ t("Copies the registration link and the one-use code together.") }}</p>
+  <p class="auth-switch"><a href="{{ '/' if signed_in else '/login' }}">{{ t("Done") }}</a></p>
+</main>{% include "translations.html" %}<script src="/static/app.js?v={{ static_version }}"></script></body></html>
