@@ -391,3 +391,16 @@ button.is-loading { opacity: .65; cursor: wait; }
   .budget-table .actions form { display: none; }
   .budget-table .recurring { margin: 0; font-size: 14px; }
 }
+
+/* Standalone screens and on-screen keyboards, without changing desktop layout. */
+@media (max-width: 720px) {
+  .shell { padding-bottom: env(safe-area-inset-bottom); }
+  .auth-page { min-height: 100dvh; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+  input:not([type="checkbox"]):not([type="radio"]), select { font-size: 16px; min-width: 0; }
+  dialog { max-height: calc(100dvh - 24px); overflow-y: auto; }
+  dialog > form { padding: 24px 20px; }
+  .close { width: 44px; height: 44px; top: 12px; right: 12px; }
+  dialog h2 { padding-right: 40px; }
+  .grocery-add-form input { min-width: 0; max-width: 100%; }
+  .description-cell strong, .grocery-hero p { overflow-wrap: anywhere; }
+}

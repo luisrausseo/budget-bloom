@@ -5,7 +5,7 @@
   <title>{{ t("Grocery List · Budget Bloom") }}</title>
   <script src="/static/theme.js?v={{ static_version }}"></script>
   <link rel="stylesheet" href="/static/styles.css?v={{ static_version }}"><link rel="stylesheet" href="/static/layout-fixes.css?v={{ static_version }}">
-</head>
+{% include "pwa_head.html" %}</head>
 <body data-household="{{ account.household_id }}"><main class="shell">
   <header><a class="brand-home" href="/" title="{{ t("Show whole household for the current month") }}"><p class="eyebrow">{{ t("HOUSEHOLD FINANCE") }}</p><h1>Budget <em>Bloom</em></h1></a>{% include "account_menu.html" %}</header>
   <nav class="app-tabs" aria-label="{{ t("Application sections") }}"><a href="/" data-budget-tab>{{ t("Monthly budget") }}</a><a href="/groceries" class="active" aria-current="page">{{ t("Grocery list") }}</a></nav>

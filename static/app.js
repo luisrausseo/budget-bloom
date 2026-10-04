@@ -211,6 +211,9 @@ document.querySelectorAll('form[method="post"]').forEach(form => form.addEventLi
       table.closest('.ledger').querySelector('.section-title button')?.focus(); notice(t('Entry removed. Earlier months of recurring entries are unchanged.'));
     } else if (isJSON && payload.redirect) {
       const url = new URL(payload.redirect, location.origin); if (url.origin !== location.origin) throw new Error(t('Unexpected destination. Please reload.'));
+      if (['/login', '/logout', '/register', '/security/password', '/security/sessions/revoke'].includes(new URL(form.action).pathname)) {
+        window.dispatchEvent(new Event('budget-auth-changed'));
+      }
       if (form.action.endsWith('/logout')) storage.remove(contextKey);
       if (!url.searchParams.has('message')) storage.set('budget-flash', form.action.endsWith('/login') ? 'Signed in successfully.' :
         form.action.endsWith('/logout') ? 'Signed out.' : url.pathname === '/login' ? 'Done. Please sign in to continue.' : 'Changes saved.');
