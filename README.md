@@ -2,6 +2,20 @@
 
 A FastAPI + Supabase household budget dashboard.
 
+## Repository layout
+
+```text
+app.py                 Main FastAPI application
+admin.py               Local admin application
+translations.py        Language strings and helpers
+assets/                Source artwork, including the logo
+sql/migrations/        Database setup and upgrade scripts
+sql/tests/             Database regression checks
+static/                Browser JavaScript and CSS
+templates/             Jinja templates
+tests/                 Python and browser tests
+```
+
 ## Run locally
 
 1. Activate the prepared environment: `conda activate budget-bloom`
@@ -13,19 +27,20 @@ A FastAPI + Supabase household budget dashboard.
 
 For a fresh database, run these SQL files in order in the Supabase SQL editor:
 
-1. `supabase_migration.sql`
-2. `add_entry_category.sql`
-3. `normalize_entry_categories.sql`
-4. `add_recurrence_end_month.sql`
-5. `add_category_emojis.sql`
-6. `add_accounts_and_sessions.sql`
-7. `add_household_invitations.sql`
-8. `harden_authentication.sql`
-9. `add_dashboard_rpc.sql`
-10. `add_performance_indexes.sql`
-11. `add_admin_dashboard.sql`
-12. `add_household_grocery_list.sql`
-13. `add_monthly_entry_overrides.sql`
+1. `sql/migrations/supabase_migration.sql`
+2. `sql/migrations/add_entry_category.sql`
+3. `sql/migrations/normalize_entry_categories.sql`
+4. `sql/migrations/add_recurrence_end_month.sql`
+5. `sql/migrations/add_category_emojis.sql`
+6. `sql/migrations/add_accounts_and_sessions.sql`
+7. `sql/migrations/add_household_invitations.sql`
+8. `sql/migrations/harden_authentication.sql`
+9. `sql/migrations/add_dashboard_rpc.sql`
+10. `sql/migrations/add_performance_indexes.sql`
+11. `sql/migrations/add_admin_dashboard.sql`
+12. `sql/migrations/add_household_grocery_list.sql`
+13. `sql/migrations/add_monthly_entry_overrides.sql`
+14. `sql/migrations/add_account_language.sql`
 
 They create month-specific completion records and the normalized category list.
 
@@ -33,9 +48,21 @@ Recurring entries use the original values in each following month. Editing one
 occurrence changes only the selected month (including its amount, description,
 person, category, type, or day). Deleting a recurring entry removes the selected
 month and all following months, preserving earlier occurrences and completions.
-Apply `add_monthly_entry_overrides.sql` before deploying this version, then reload
+Apply `sql/migrations/add_monthly_entry_overrides.sql` before deploying this version, then reload
 the app. It adds monthly overrides and new RPCs without rewriting existing entries.
 Previously overwritten or deleted history cannot be reconstructed by this change.
+
+## Tests
+
+Run the Python tests from the repository root:
+
+```sh
+python -m unittest discover -s tests -p 'test_*.py'
+```
+
+After applying the migrations, run `sql/tests/monthly_recurrence.sql` in the
+Supabase SQL editor to check recurring-entry behavior. It uses synthetic data
+and rolls back its transaction. SQL files in `sql/tests/` are tests, not migrations.
 
 ## Outbound proxy
 
@@ -46,7 +73,7 @@ behavior for another hosting environment.
 
 ## Language preference
 
-Run `add_account_language.sql` in Supabase before deploying this version, then
+Run `sql/migrations/add_account_language.sql` in Supabase before deploying this version, then
 reload the app. Choose **Account → Language → English / Español → Apply**.
 The preference is stored on the account and applies across sessions and devices;
 existing and new accounts default to English. A non-sensitive cookie also keeps
