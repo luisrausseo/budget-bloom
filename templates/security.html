@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="{{ ui_language() }}">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ t("Account security · Budget Bloom") }}</title><script src="/static/theme.js?v={{ static_version }}"></script><link rel="stylesheet" href="/static/styles.css?v={{ static_version }}"><link rel="stylesheet" href="/static/layout-fixes.css?v={{ static_version }}"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ t("Account security · Budget Bloom") }}</title><script src="/static/theme.js?v={{ static_version }}"></script><link rel="stylesheet" href="/static/styles.css?v={{ static_version }}"><link rel="stylesheet" href="/static/layout-fixes.css?v={{ static_version }}">{% include "pwa_head.html" %}</head>
 <body><main class="shell security-shell">
   <header><div><p class="eyebrow">{{ t("ACCOUNT SETTINGS") }}</p><h1>{{ t("Security &") }} <em>{{ t("access") }}</em></h1></div><div class="account-menu"><button class="theme-toggle" type="button" aria-label="{{ t("Switch color theme") }}">☾</button><a class="ghost header-link" href="/">{{ t("Back to budget") }}</a></div></header>
   {% if message %}<p class="security-message" role="status">{{ t(message) }}</p>{% endif %}

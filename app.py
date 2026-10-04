@@ -2,6 +2,7 @@ import calendar
 import getpass
 import hashlib
 import hmac
+import json
 import logging
 import os
 import re
@@ -16,7 +17,7 @@ from zoneinfo import ZoneInfo
 import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
@@ -49,12 +50,17 @@ templates = Environment(
     autoescape=select_autoescape(["html", "xml"]),
 )
 configure(templates)
-templates.globals["static_version"] = str(int(max(
-    (BASE_DIR / "static" / "app.js").stat().st_mtime,
-    (BASE_DIR / "static" / "theme.js").stat().st_mtime,
-    (BASE_DIR / "static" / "styles.css").stat().st_mtime,
-    (BASE_DIR / "static" / "layout-fixes.css").stat().st_mtime,
-)))
+# Only these public files may enter the PWA cache. Never derive this list from
+# requests or recursively include files that could contain account data.
+PWA_ASSETS = (
+    "styles.css", "layout-fixes.css", "app.js", "theme.js", "pwa.js",
+    "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png",
+    "icons/apple-touch-icon.png", "offline.html",
+)
+PWA_VERSION = hashlib.sha256(b"".join(
+    (BASE_DIR / "static" / name).read_bytes() for name in (*PWA_ASSETS, "sw.js")
+)).hexdigest()[:16]
+templates.globals["static_version"] = PWA_VERSION
 
 
 class Supabase:
@@ -140,18 +146,55 @@ async def security_headers(request: Request, call_next):
         "default-src 'self'; script-src 'self'; "
         "style-src 'self' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; "
+        "manifest-src 'self'; worker-src 'self'; "
         "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     )
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    # Includes HTML, JSON, redirects, errors, login and logout, regardless of
+    # whether a session is currently present. StaticFiles serves public files only.
+    if not request.url.path.startswith("/static/") and request.url.path not in (
+        "/manifest.webmanifest", "/sw.js",
+    ):
+        response.headers["Cache-Control"] = "no-store, private"
+        response.headers["Pragma"] = "no-cache"
+        response.headers.append("Vary", "Cookie")
     if COOKIE_SECURE:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     elapsed_ms = (time.perf_counter() - started) * 1000
     response.headers["Server-Timing"] = f"app;dur={elapsed_ms:.1f}"
     logger.info("%s %s completed in %.1fms", request.method, request.url.path, elapsed_ms)
     return response
+
+
+@app.get("/manifest.webmanifest")
+async def web_app_manifest():
+    def icon(name, size, purpose="any"):
+        return {"src": f"/static/icons/{name}?v={PWA_VERSION}", "sizes": size,
+                "type": "image/png", "purpose": purpose}
+
+    return JSONResponse({
+        "id": "/", "name": "Budget Bloom", "short_name": "Budget Bloom",
+        "start_url": "/", "scope": "/", "display": "standalone",
+        "theme_color": "#27725f", "background_color": "#f5f4ed",
+        "icons": [icon("icon-192.png", "192x192"), icon("icon-512.png", "512x512"),
+                  icon("maskable-512.png", "512x512", "maskable")],
+    }, media_type="application/manifest+json", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/sw.js")
+async def service_worker():
+    source = (BASE_DIR / "static" / "sw.js").read_text()
+    source = source.replace("__PWA_VERSION__", PWA_VERSION).replace(
+        "__PWA_ASSETS__", json.dumps([
+            f"/static/{name}?v={PWA_VERSION}" for name in PWA_ASSETS
+        ]),
+    )
+    return Response(source, media_type="application/javascript", headers={
+        "Service-Worker-Allowed": "/", "Cache-Control": "no-cache",
+    })
 
 
 def password_hash(password: str, salt: bytes | None = None) -> str:
